@@ -1,5 +1,6 @@
 import re
 from configs.settings import settings
+from typing import List 
 
 def chunk_text(text: str, chunk_size: int = settings.CHUNK_SIZE, overlap: int = settings.CHUNK_OVERLAP) -> List[str]:
     sentences = re.split(r'(?<=[.!?])\s+', text)

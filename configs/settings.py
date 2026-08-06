@@ -10,6 +10,9 @@ class Settings:
     CHUNKS_FILE = os.path.join(DATA_PROCESSED_DIR, "chunks.jsonl")
     VECTOR_INDEX_DIR = os.path.join(DATA_PROCESSED_DIR, "vector_index")
 
+    # Logging
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
     # LLM
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

@@ -1,6 +1,7 @@
 import json, os, numpy as np, faiss
 from sentence_transformers import SentenceTransformer
 from configs.settings import settings
+from typing import List, Dict
 
 class VectorIndexer:
     def __init__(self):
