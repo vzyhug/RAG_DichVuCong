@@ -1,7 +1,16 @@
-import numpy as np, faiss, json
+import numpy as np, faiss, json, os
 from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 from configs.settings import settings
+import torch
+
+try:
+    import spaces
+except ImportError:
+    class spaces:
+        @staticmethod
+        def GPU(func):
+            return func
 
 class Retriever:
     def __init__(self, index_dir: str = settings.VECTOR_INDEX_DIR):
@@ -10,10 +19,15 @@ class Retriever:
         with open(f"{index_dir}/metadata.json", 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
 
+    @spaces.GPU
     def retrieve(self, query: str, top_k: int = settings.TOP_K) -> List[Dict]:
+        if torch.cuda.is_available() or "SPACE_ID" in os.environ:
+            self.model.to('cuda')
+            
         # E5 models require 'query: ' prefix for user queries
         query_text = f"query: {query}" if "e5" in settings.EMBEDDING_MODEL.lower() else query
         query_emb = self.model.encode([query_text], convert_to_numpy=True, normalize_embeddings=True)
+        
         distances, indices = self.index.search(query_emb.astype(np.float32), top_k)
         results = []
         for idx, dist in zip(indices[0], distances[0]):
