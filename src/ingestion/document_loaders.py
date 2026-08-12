@@ -4,11 +4,32 @@ from pypdf import PdfReader
 import docx2txt
 from pathlib import Path
 
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
 def load_pdf(file_path: str) -> str:
-    reader = PdfReader(file_path)
     text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
+    if pdfplumber is not None:
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+        except Exception as e:
+            pass
+    
+    if not text.strip():
+        try:
+            reader = PdfReader(file_path)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        except Exception as e:
+            pass
     return text
 
 def load_docx(file_path: str) -> str:
@@ -47,5 +68,8 @@ def load_all_documents(root_dir: str) -> List[Dict]:
                             "content": content,
                         })
                 except Exception as e:
-                    print(f"Error loading {file_path}: {e}")
+                    try:
+                        print(f"Error loading {file_path}: {e}")
+                    except UnicodeEncodeError:
+                        print(f"Error loading {ascii(file_path)}: {ascii(str(e))}")
     return documents
