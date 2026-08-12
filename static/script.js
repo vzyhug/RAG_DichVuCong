@@ -235,7 +235,8 @@ chatForm.addEventListener('submit', async (e) => {
         
     } catch (error) {
         console.error('Error:', error);
-        textContentDiv.innerHTML = marked.parse('Lỗi kết nối đến máy chủ. Vui lòng thử lại sau.');
+        let errorDetails = error.message ? error.message : String(error);
+        textContentDiv.innerHTML = marked.parse(`Lỗi hệ thống: ${errorDetails}. Vui lòng thử lại sau.`);
     } finally {
         isWaitingForResponse = false;
     }

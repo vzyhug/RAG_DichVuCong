@@ -1,4 +1,5 @@
 import numpy as np, faiss, json
+from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 from configs.settings import settings
 
@@ -10,7 +11,9 @@ class Retriever:
             self.metadata = json.load(f)
 
     def retrieve(self, query: str, top_k: int = settings.TOP_K) -> List[Dict]:
-        query_emb = self.model.encode([query], convert_to_numpy=True)
+        # E5 models require 'query: ' prefix for user queries
+        query_text = f"query: {query}" if "e5" in settings.EMBEDDING_MODEL.lower() else query
+        query_emb = self.model.encode([query_text], convert_to_numpy=True, normalize_embeddings=True)
         distances, indices = self.index.search(query_emb.astype(np.float32), top_k)
         results = []
         for idx, dist in zip(indices[0], distances[0]):

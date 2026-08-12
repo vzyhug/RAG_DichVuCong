@@ -55,8 +55,13 @@ async def chat(request: ChatRequest):
     logger.info(f"Query: {query}")
 
     # 1. Kiểm tra khẩn cấp
+    query_lower = query.lower()
+    info_keywords = ["quy định", "luật", "thủ tục", "hồ sơ", "pccc", "phòng cháy", "chữa cháy", "hướng dẫn", "mức phạt", "xử phạt", "cấp phép", "giấy phép", "như thế nào", "là gì"]
+    is_info_query = any(kw in query_lower for kw in info_keywords)
+    
     emergency_keywords = ["cháy", "nổ", "đánh nhau", "đe dọa", "cấp cứu", "tai nạn"]
-    is_emergency = any(kw in query.lower() for kw in emergency_keywords)
+    is_emergency = any(kw in query_lower for kw in emergency_keywords) and not is_info_query
+    
     if is_emergency:
         async def emergency_stream():
             meta = json.dumps({"emergency": True, "need_clarification": False, "contexts": []}, ensure_ascii=False)
@@ -71,10 +76,18 @@ async def chat(request: ChatRequest):
     contexts = context_result.get("contexts", [])
     entities = context_result.get("entities", {})
 
-    # 3. Kiểm tra đủ thông tin
-    intent = None
-    if contexts:
-        intent = contexts[0].get('metadata', {}).get('intent_code')
+    # 3. Guardrail: Từ chối trả lời nếu không có ngữ cảnh nào khớp (Dẹp TOP-K ép buộc)
+    if not contexts:
+        async def no_data_stream():
+            meta = json.dumps({"emergency": False, "need_clarification": False, "contexts": []}, ensure_ascii=False)
+            yield f"data: {meta}\n\n"
+            ans = "Xin lỗi, dữ liệu hiện tại không đủ cung cấp câu trả lời cho bạn."
+            yield f"data: {json.dumps({'delta': ans}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(no_data_stream(), media_type="text/event-stream")
+
+    # 4. Kiểm tra đủ thông tin (Reasoning)
+    intent = contexts[0].get('metadata', {}).get('intent_code') if contexts else None
     reasoning_result = reasoning.process(query, intent, entities, chunks)
 
     if not reasoning_result.get("ready"):
@@ -86,8 +99,9 @@ async def chat(request: ChatRequest):
             yield "data: [DONE]\n\n"
         return StreamingResponse(clarification_stream(), media_type="text/event-stream")
 
-    # 4. Tạo prompt và gọi LLM với Streaming
-    context_text = "\n---\n".join([c.get('text', '') for c in contexts[:3]])  # Top 3 chunks
+    # 5. Tạo prompt và gọi LLM với Streaming
+    # Chỉ dùng những chunk đã vượt qua được Similarity Threshold
+    context_text = "\n---\n".join([c.get('text', '') for c in contexts])
     prompt = build_prompt(context_text, query)
 
     async def llm_stream():
@@ -95,7 +109,7 @@ async def chat(request: ChatRequest):
         yield f"data: {meta}\n\n"
         try:
             model_name = settings.OPENAI_MODEL if settings.LLM_PROVIDER == "openai" else settings.GEMINI_MODEL
-            stream = llm_client.chat.completions.create(
+            stream = await llm_client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
@@ -103,13 +117,13 @@ async def chat(request: ChatRequest):
                 stream=True
             )
             full_content = ""
-            for chunk in stream:
+            async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     delta = chunk.choices[0].delta.content
                     full_content += delta
                     yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
             
-            logger.info(f"LLM Raw Output: {full_content}")
+            logger.info("LLM stream finished successfully.")
             if not full_content.strip():
                 fallback = "Xin lỗi, hiện tại tôi chưa tìm thấy thông tin chi tiết hoặc câu trả lời chưa sẵn sàng. Anh/chị vui lòng thử lại hoặc liên hệ trực tiếp cơ quan công an."
                 yield f"data: {json.dumps({'delta': fallback}, ensure_ascii=False)}\n\n"

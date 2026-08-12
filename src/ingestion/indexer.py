@@ -29,8 +29,9 @@ class VectorIndexer:
         return chunks
 
     def build_index(self, chunks: List[Dict]):
-        texts = [c['text'] for c in chunks]
-        embeddings = self.model.encode(texts, show_progress_bar=True, convert_to_numpy=True)
+        # E5 models require 'passage: ' prefix for documents
+        texts = [f"passage: {c['text']}" if "e5" in settings.EMBEDDING_MODEL.lower() else c['text'] for c in chunks]
+        embeddings = self.model.encode(texts, show_progress_bar=True, convert_to_numpy=True, normalize_embeddings=True)
         self.index = faiss.IndexFlatIP(self.dimension)
         self.index.add(embeddings.astype(np.float32))
         self.metadata = chunks

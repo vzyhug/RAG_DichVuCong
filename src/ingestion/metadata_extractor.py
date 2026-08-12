@@ -8,12 +8,13 @@ def extract_metadata_from_file(relative_path: str, content: str) -> Dict:
     """
     metadata = {}
     # Tách từ đường dẫn
+    relative_path = relative_path.replace('\\', '/')
     path_parts = relative_path.split('/')
+    filename = path_parts[-1]
+    metadata['filename'] = filename
     if len(path_parts) >= 2:
-        source_group = path_parts[0]  # SRC-A, SRC-B, ...
+        source_group = path_parts[-2] if "SRC" in path_parts[-2] else path_parts[0] # Try to get the folder SRC-* if possible
         metadata['source_group'] = source_group
-        filename = path_parts[-1]
-        metadata['filename'] = filename
 
     # Trích xuất số hiệu văn bản từ tên file hoặc nội dung
     # Mẫu: 68/2020/QH14, 154/2024/NĐ-CP, 66/2023/TT-BCA, ...

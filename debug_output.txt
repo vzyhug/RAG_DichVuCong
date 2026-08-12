@@ -1,0 +1,19 @@
+STATUS: 200
+data: {"emergency": false, "need_clarification": false, "contexts": [{"source_id": "CRAWL-KNOWLEDGE-BASE_SRC-B_01_pdf", "relative_path": "CRAWL-KNOWLEDGE-BASE\\SRC-B\\01.pdf", "chunk_index": 126, "text": "cước 1. Cơ sở dữ liệu căn cước được xây dựng và quản lý tập trung, thống nhất tại cơ quan quản lý căn cước của Bộ Công an. 2. Cơ sở dữ liệu căn cước được xây dựng theo tiêu chuẩn, quy chuẩn kỹ thuật \ncông nghệ thông tin, định mức kinh tế - kỹ thuật, bảo đảm kết nối với Cơ sở dữ liệu \nquốc gia về dân cư, hoạt động ổn định, liên tục.", "metadata": {"filename": "01.pdf", "source_group": "SRC-B", "document_number": "26/2023/QH15", "doc_type": "Luật"}, "score": 0.8923826217651367}, {"source_id": "CRAWL-KNOWLEDGE-BASE_SRC-B_01_pdf", "relative_path": "CRAWL-KNOWLEDGE-BASE\\SRC-B\\01.pdf", "chunk_index": 125, "text": "cập nhật, điều chỉnh, lưu trữ. Mục 2 CƠ SỞ DỮ LIỆU CĂN CƯỚC Điều 14. Yêu cầu xây dựng và quản lý Cơ sở dữ liệu căn cước 1. Cơ sở dữ liệu căn cước được xây dựng và quản lý tập trung, thống nhất tại \ncơ quan quản lý căn cước của Bộ Công an. 2.", "metadata": {"filename": "01.pdf", "source_group": "SRC-B", "document_number": "26/2023/QH15", "doc_type": "Luật"}, "score": 0.8877357244491577}, {"source_id": "CRAWL-KNOWLEDGE-BASE_SRC-B_01_pdf", "relative_path": "CRAWL-KNOWLEDGE-BASE\\SRC-B\\01.pdf", "chunk_index": 7, "text": "được hiểu như sau: 1. Căn cước là thông tin c ơ bản về nhân thân, lai l ịch, nhân dạng và sinh tr ắc học của một người. 2. Nhân dạng là đặc điểm cá biệt và ổn định bên ngoài của một người để nhận \ndiện, phân biệt người này với người khác. 3.", "metadata": {"filename": "01.pdf", "source_group": "SRC-B", "document_number": "26/2023/QH15", "doc_type": "Luật"}, "score": 0.8867780566215515}]}
+
+data: {"delta": "D"}
+
+data: {"delta": "ạ, theo quy định pháp luật, \"Căn cước\" được hiểu"}
+
+data: {"delta": " là những thông tin cơ bản về nhân thân, lai lịch, nhân dạng và sinh trắc học của một người."}
+
+data: {"delta": " \n\nBên cạnh đó, Cơ sở dữ liệu căn cước được xây dựng và quản lý tập trung, thống nhất tại cơ"}
+
+data: {"delta": " quan quản lý căn cước của Bộ Công an, bảo đảm kết nối với Cơ sở dữ liệu quốc gia về dân"}
+
+data: {"delta": " cư để hoạt động ổn định và liên tục.\n\nAnh/chị cần em hỗ trợ thêm thông tin gì về vấn"}
+
+data: {"delta": " đề này không ạ?"}
+
+data: [DONE]
+
