@@ -16,4 +16,4 @@ COPY --chown=user:user . .
 # Hugging Face Spaces mặc định sử dụng cổng 7860
 EXPOSE 7860
 
-CMD ["uvicorn", "src.api.endpoint:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
