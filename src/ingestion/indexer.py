@@ -5,7 +5,7 @@ from typing import List, Dict
 
 class VectorIndexer:
     def __init__(self):
-        self.model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        self.model = SentenceTransformer(settings.EMBEDDING_MODEL, device='cpu')
         self.dimension = self.model.get_sentence_embedding_dimension()
         self.index = None
         self.metadata = []

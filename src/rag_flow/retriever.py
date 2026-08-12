@@ -5,7 +5,7 @@ from configs.settings import settings
 
 class Retriever:
     def __init__(self, index_dir: str = settings.VECTOR_INDEX_DIR):
-        self.model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        self.model = SentenceTransformer(settings.EMBEDDING_MODEL, device='cpu')
         self.index = faiss.read_index(f"{index_dir}/index.faiss")
         with open(f"{index_dir}/metadata.json", 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
