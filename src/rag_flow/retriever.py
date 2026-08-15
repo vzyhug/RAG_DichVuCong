@@ -4,14 +4,6 @@ from sentence_transformers import SentenceTransformer
 from configs.settings import settings
 import torch
 
-try:
-    import spaces
-except ImportError:
-    class spaces:
-        @staticmethod
-        def GPU(func):
-            return func
-
 class Retriever:
     def __init__(self, index_dir: str = settings.VECTOR_INDEX_DIR):
         self.model = SentenceTransformer(settings.EMBEDDING_MODEL, device='cpu')
@@ -19,9 +11,8 @@ class Retriever:
         with open(f"{index_dir}/metadata.json", 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
 
-    @spaces.GPU
     def retrieve(self, query: str, top_k: int = settings.TOP_K) -> List[Dict]:
-        if torch.cuda.is_available() or "SPACE_ID" in os.environ:
+        if torch.cuda.is_available():
             self.model.to('cuda')
             
         # E5 models require 'query: ' prefix for user queries

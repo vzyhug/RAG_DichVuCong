@@ -1,0 +1,121 @@
+1. Nhóm nội dung chatbot nên có
+A. Thủ tục cư trú
+Đây là nhóm quan trọng nhất, người dân hỏi nhiều nhất.
+Nội dung cần có:
+Đăng ký thường trú 
+Đăng ký tạm trú 
+Gia hạn tạm trú 
+Xóa đăng ký thường trú 
+Xóa đăng ký tạm trú 
+Khai báo tạm vắng 
+Thông báo lưu trú 
+Xác nhận thông tin cư trú 
+Điều chỉnh thông tin cư trú 
+Khai báo thông tin cư trú cho người chưa đủ điều kiện đăng ký thường trú/tạm trú 
+Các thủ tục như đăng ký thường trú, đăng ký tạm trú, xác nhận thông tin cư trú đều có bước nộp hồ sơ tại Công an cấp xã/phường hoặc qua dịch vụ công theo hướng dẫn hiện hành. 
+B. Căn cước, định danh điện tử, VNeID
+Nhóm này nên có vì người dân thường hỏi rất nhiều.
+Nội dung cần có:
+Làm thẻ căn cước lần đầu 
+Cấp đổi, cấp lại thẻ căn cước 
+Căn cước cho người dưới 14 tuổi 
+Căn cước cho người từ đủ 14 tuổi trở lên 
+Hướng dẫn đăng nhập VNeID 
+Kích hoạt tài khoản định danh điện tử 
+Quên mật khẩu VNeID 
+Sai thông tin trên VNeID 
+Cách dùng VNeID khi đi làm thủ tục hành chính 
+Các lỗi thường gặp khi dùng dịch vụ công 
+Theo Cổng Dịch vụ công Quốc gia, thủ tục cấp thẻ căn cước cho người từ đủ 14 tuổi trở lên hiện thực hiện trực tiếp tại cơ quan quản lý căn cước Công an cấp tỉnh hoặc Trung tâm phục vụ hành chính công cấp tỉnh nếu đã triển khai. 
+C. Dịch vụ công trực tuyến
+Chatbot cần hướng dẫn người dân thao tác cơ bản, vì nhiều người không biết bắt đầu từ đâu.
+Nội dung cần có:
+Cách đăng nhập Cổng Dịch vụ công 
+Cách nộp hồ sơ trực tuyến 
+Cách tra cứu trạng thái hồ sơ 
+Cách thanh toán phí/lệ phí online 
+Cách nhận kết quả 
+Cách bổ sung hồ sơ khi bị yêu cầu 
+Cách phản ánh, kiến nghị về thủ tục hành chính 
+Hướng dẫn dùng tài khoản VNeID mức 2 để làm thủ tục 
+Cổng Dịch vụ công Quốc gia có chức năng tra cứu, thanh toán phí/lệ phí hồ sơ trực tuyến và có tổng đài hỗ trợ 18001096. 
+D. Đăng ký xe, biển số, giấy phép lái xe
+Từ năm 2025, Bộ Công an có hướng dẫn thực hiện một số thủ tục hành chính theo mô hình tổ chức mới, trong đó có lĩnh vực sát hạch, cấp giấy phép lái xe và các thủ tục liên quan. 
+Nội dung chatbot nên có:
+Đăng ký xe lần đầu 
+Sang tên xe 
+Cấp đổi/cấp lại đăng ký xe 
+Cấp đổi/cấp lại biển số 
+Thu hồi đăng ký, biển số 
+Hướng dẫn biển số định danh 
+Hướng dẫn nộp hồ sơ đăng ký xe online 
+Đổi giấy phép lái xe 
+Cấp lại giấy phép lái xe 
+Tra cứu tình trạng hồ sơ xe 
+E. An ninh trật tự và phản ánh của người dân
+Đây là nhóm chatbot giúp giảm tải điện thoại và phân loại vụ việc ban đầu.
+Nội dung cần có:
+Báo mất trộm 
+Báo gây rối trật tự 
+Báo đánh nhau, mâu thuẫn khu dân cư 
+Báo nghi vấn ma túy 
+Báo tín dụng đen 
+Báo lừa đảo online 
+Báo tụ tập đua xe, gây mất trật tự 
+Báo bạo lực gia đình 
+Báo người nghi vấn, đối tượng lạ 
+Hướng dẫn gọi số khẩn cấp khi nguy hiểm 
+Với nhóm này, chatbot không nên tự xử lý sâu, mà chỉ hướng dẫn người dân cung cấp thông tin: họ tên, số điện thoại, địa điểm, thời gian, nội dung vụ việc, hình ảnh/video nếu có, rồi chuyển cán bộ tiếp nhận.
+F. Phòng cháy chữa cháy
+Nên có nhóm riêng vì rất cần cho nhà trọ, hộ gia đình, cơ sở kinh doanh.
+Nội dung cần có:
+Kỹ năng PCCC hộ gia đình 
+Kỹ năng thoát nạn khi cháy 
+An toàn PCCC nhà trọ 
+An toàn PCCC chung cư mini 
+An toàn PCCC cơ sở kinh doanh 
+Hướng dẫn trang bị bình chữa cháy 
+Tổ liên gia an toàn PCCC 
+Báo cháy gọi số nào 
+Những lỗi PCCC thường gặp 
+Checklist tự kiểm tra PCCC tại nhà
+G. Ngành nghề kinh doanh có điều kiện về an ninh, trật tự
+Nhóm này phục vụ doanh nghiệp, hộ kinh doanh, nhà trọ, khách sạn, karaoke, cầm đồ.
+Nội dung cần có:
+Cấp mới giấy chứng nhận đủ điều kiện về an ninh, trật tự 
+Cấp đổi, cấp lại giấy chứng nhận 
+Điều kiện đối với cơ sở lưu trú 
+Điều kiện đối với dịch vụ cầm đồ 
+Điều kiện đối với karaoke, massage 
+Khai báo lưu trú cho khách thuê 
+Trách nhiệm của chủ nhà trọ 
+Hồ sơ cần chuẩn bị 
+Phí/lệ phí nếu có 
+Các lỗi thường bị xử phạt 
+Một số thủ tục như cấp lại giấy chứng nhận đủ điều kiện về an ninh, trật tự đã được công bố trên Cổng Dịch vụ công Quốc gia và có trường hợp thực hiện tại Công an cấp xã. 
+H. Tuyên truyền phòng chống tội phạm
+Chatbot không chỉ trả lời thủ tục, mà còn nên là kênh truyền thông pháp luật tự động.
+Chủ đề cần có:
+Phòng chống lừa đảo trực tuyến 
+Phòng chống ma túy 
+Phòng chống tín dụng đen 
+Phòng chống trộm cắp 
+Phòng chống bạo lực gia đình 
+Phòng chống mua bán người 
+Bảo vệ trẻ em trên môi trường mạng 
+Cảnh giác giả danh công an, tòa án, viện kiểm sát 
+Không cung cấp mã OTP 
+Không bấm link lạ 
+I. Thông tin liên hệ, lịch làm việc, địa chỉ
+Đây là phần bắt buộc phải có.
+Chatbot cần trả lời được:
+Địa chỉ Công an phường 
+Số điện thoại trực ban 
+Giờ làm việc 
+Lịch tiếp dân 
+Cán bộ phụ trách từng lĩnh vực 
+Địa điểm nộp hồ sơ 
+Link dịch vụ công 
+Hướng dẫn đường đi 
+Các kênh Zalo/Facebook chính thống 
+Số khẩn cấp khi có sự việc nguy hiểm

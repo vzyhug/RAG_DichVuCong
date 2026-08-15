@@ -1,0 +1,28 @@
+[
+  {
+    "source_id": "new_task_tài liệu cập nhật chatbox AI_docx",
+    "relative_path": "new_task\\tài liệu cập nhật chatbox AI.docx",
+    "chunk_index": 5,
+    "text": "- Người đứng đầu: Thượng tá Trần Thị Minh Huệ - Trưởng Công an xã",
+    "metadata": {
+      "filename": "tài liệu cập nhật chatbox AI.docx",
+      "source_group": "new_task",
+      "document_number": "70/2019/NĐ-CP",
+      "doc_type": "Luật",
+      "category": "PCCC"
+    }
+  },
+  {
+    "source_id": "new_task_tài liệu cập nhật chatbox AI_docx",
+    "relative_path": "new_task\\tài liệu cập nhật chatbox AI.docx",
+    "chunk_index": 14,
+    "text": "1. Thượng tá Trần Thị Minh Huệ - Trưởng Công an xã: Phụ trách chung: 0908.304.266",
+    "metadata": {
+      "filename": "tài liệu cập nhật chatbox AI.docx",
+      "source_group": "new_task",
+      "document_number": "70/2019/NĐ-CP",
+      "doc_type": "Luật",
+      "category": "PCCC"
+    }
+  }
+]

@@ -13,3 +13,4 @@ requests==2.32.3
 pydantic==2.10.4
 gradio
 spaces
+streamlit

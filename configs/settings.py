@@ -16,17 +16,17 @@ class Settings:
     # LLM
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-pro")
 
     # Embedding
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
-    TOP_K = int(os.getenv("TOP_K", 3))
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.75))
+    TOP_K = int(os.getenv("TOP_K", 10))
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", 0.70))
 
     # Chunking
-    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 300))
-    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 30))
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 2500))
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 400))
 
 settings = Settings()

@@ -1,47 +1,65 @@
-# Tổng hợp quá trình thực hiện: Từ Tiền xử lý dữ liệu đến Baseline Model (LegalQA)
+# Báo cáo Tổng hợp Quá trình Thực hiện Dự án DVC-BCA-RAG
 
-Dưới đây là tóm tắt toàn bộ các bước đã thực hiện trong bài toán LegalQA, được chia thành hai giai đoạn chính: **Tiền xử lý dữ liệu (Preprocessing)** và **Xây dựng mô hình cơ sở (Baseline RAG Pipeline)**.
+Dự án **DVC-BCA-RAG** là hệ thống Chatbot ứng dụng công nghệ Retrieval-Augmented Generation (RAG) nhằm hỗ trợ người dân tra cứu thông tin về thủ tục hành chính, pháp luật thuộc thẩm quyền của Công an phường/xã (ví dụ: cư trú, căn cước, PCCC, đăng ký xe, v.v.).
 
----
-
-## 1. Giai đoạn Tiền xử lý dữ liệu (Preprocessing)
-Quá trình này được thực hiện trong file [`preprocessing_pipeline.ipynb`](file:///E:/nam4_hk1/dsc/preprocessing_pipeline.ipynb) nhằm làm sạch và chuẩn bị dữ liệu văn bản pháp luật từ thư mục `selected-contexts`.
-
-### 1.1. Làm sạch văn bản (Text Cleaning)
-- **Loại bỏ Boilerplate:** Xóa bỏ các thành phần rập khuôn không mang nhiều ý nghĩa tra cứu như Quốc hiệu, tiêu ngữ ("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", "Độc lập - Tự do - Hạnh phúc"), số hiệu văn bản, và ngày tháng ban hành.
-- **Sửa lỗi ngắt dòng:** Nối lại các dòng bị ngắt sai ngữ pháp (những dòng không kết thúc bằng dấu chấm, phẩy, hai chấm, hỏi chấm, chấm cảm).
-- **Loại bỏ khoảng trắng thừa:** Chuẩn hóa các dấu xuống dòng liên tiếp (đưa về tối đa 2 lần xuống dòng) và xóa các khoảng trắng dư thừa trong câu.
-
-### 1.2. Chuẩn hóa định dạng (Heuristic Formatting)
-- Các dòng có cấu trúc giống công thức hoặc bảng biểu được điều chỉnh lại khoảng trắng xung quanh dấu `=` để văn bản được đồng nhất hơn.
-
-### 1.3. Phân rã văn bản & Bổ sung ngữ cảnh (Semantic Chunking & Metadata Injection)
-- **Chunking:** Tách các văn bản pháp luật dài thành từng đoạn nhỏ (chunk), sử dụng dấu hiệu nhận biết là các từ khóa "Điều X." hoặc "Điều X:".
-- **Metadata Injection:** Thêm tên/tiêu đề của tài liệu (doc_title) vào đầu mỗi chunk (`[doc_title]\n{nội dung}`) để mô hình RAG sau này luôn nắm được đoạn văn bản trích xuất đang thuộc về văn bản luật nào.
-
-### 1.4. Xuất dữ liệu
-- Dữ liệu sau khi xử lý được lưu dưới dạng file `processed_contexts.jsonl`. Mỗi dòng chứa thông tin của một chunk (`doc_id`, `title`, `chunk_text`), tối ưu cho quá trình nạp dữ liệu ở bước sau.
+Dưới đây là tổng hợp toàn bộ các bước triển khai từ khâu chuẩn bị, xử lý dữ liệu, xây dựng Baseline, cho đến các bước tối ưu hóa.
 
 ---
 
-## 2. Giai đoạn Mô hình Cơ sở (Baseline RAG Pipeline)
-Giai đoạn này được triển khai trong file [`baseline_legalqa.ipynb`](file:///E:/nam4_hk1/dsc/baseline_legalqa.ipynb), ứng dụng kiến trúc **RAG (Retrieval-Augmented Generation)** để sinh câu trả lời.
+## 1. Chuẩn bị (Preparation)
+- **Công nghệ lõi:** Python, FastAPI (ban đầu) và Streamlit (giao diện frontend hiện tại).
+- **Thư viện xử lý dữ liệu (Document Loaders):** `pypdf`, `pdfplumber`, `docx2txt`, `bs4`, `unidecode`.
+- **Thư viện AI & Vector Search:** `sentence-transformers` (tạo text embeddings), `faiss-cpu` (lưu trữ và tìm kiếm vector), `openai` (kết nối LLM qua API OpenAI hoặc Gemini).
+- **Cấu trúc thư mục:** Dữ liệu thô lưu tại `data/raw`, sau khi xử lý lưu index và chunk tại thư mục được cấu hình.
 
-### 2.1. Xây dựng bộ truy xuất (Retriever) với BM25
-- **Tải và Tokenize dữ liệu:** Đọc file `processed_contexts.jsonl`. Văn bản tiếng Việt trong các chunk được tách từ (word segmentation) bằng thư viện `pyvi` (`ViTokenizer`).
-- **Khởi tạo BM25:** Sử dụng thuật toán `BM25Okapi` để lập chỉ mục các chunk đã tokenize.
-- **Hàm truy xuất:** Khi có câu hỏi, truy vấn cũng được tokenize và BM25 sẽ trả về `top_k=3` đoạn ngữ cảnh phù hợp nhất.
+---
 
-### 2.2. Khởi tạo mô hình ngôn ngữ (Generator)
-- **Mô hình sử dụng:** LLM `thangvip/qwen3-1.7b-vietnamese-legal-grpo-phase-2` (mô hình đã được tinh chỉnh cho tiếng Việt và lĩnh vực pháp lý).
-- **Tối ưu phần cứng:** Mô hình được load bằng kiểu dữ liệu `Float16` (`torch.float16`) và sử dụng `device_map="auto"` để tự động phân bổ lên GPU (T4 trên Colab), giúp tiết kiệm VRAM.
+## 2. Xử lý dữ liệu (Data Ingestion Pipeline)
+Quá trình đưa tài liệu (PDF, Word, Text) vào hệ thống được tự động hóa qua file `ingestion_pipeline.py` với các bước:
+1. **Load Documents:** Đọc toàn bộ các văn bản pháp luật, tài liệu hướng dẫn thủ tục hành chính từ thư mục thô.
+2. **Chunking (Chia nhỏ văn bản):** Phân rã các tài liệu lớn thành các đoạn văn bản (chunks) nhỏ hơn (ví dụ: 300-500 từ). Điều này giúp nhúng (embed) chính xác hơn và không vượt quá giới hạn token của LLM.
+3. **Lưu trữ Metadata:** Mỗi chunk đều chứa metadata về nguồn tài liệu, giúp trích dẫn nguồn cho người dùng. File chunks được lưu dưới dạng `.jsonl`.
+4. **Embedding & Indexing:** 
+   - Dùng mô hình Embedding (như `intfloat/multilingual-e5-*` hoặc `keepitreal/vietnamese-sbert`) để biến các chunks văn bản thành các vector.
+   - Xây dựng chỉ mục tìm kiếm bằng **FAISS** và lưu xuống ổ cứng để truy xuất cực nhanh.
 
-### 2.3. Quy trình Hỏi đáp (RAG Pipeline)
-- **Gộp ngữ cảnh:** Nối top 3 chunks tìm được từ BM25 thành một chuỗi văn bản hoàn chỉnh.
-- **Xây dựng Prompt:** Tạo lời nhắc (prompt) đóng vai chuyên gia pháp lý, cung cấp ngữ cảnh đã gộp và yêu cầu trả lời ngắn gọn, chính xác câu hỏi. Nếu không có thông tin, mô hình được chỉ thị trả lời "Không tìm thấy thông tin".
-- **Sinh văn bản:** Chạy mô hình với các tham số khống chế như `max_new_tokens=256`, `temperature=0.3`, và `repetition_penalty=1.1` để câu trả lời mang tính ổn định, ít ngẫu nhiên và không bị lặp từ.
+---
 
-### 2.4. Đánh giá và Xuất kết quả
-- Pipeline được áp dụng lên tập dữ liệu test `public-official.json`.
-- Duyệt qua từng câu hỏi, đưa vào mô hình để sinh câu trả lời tương ứng.
-- Kết quả cuối cùng được xuất ra file `submission.json` theo format chuẩn của cuộc thi.
+## 3. Kiến trúc Baseline (Luồng RAG Cơ bản)
+Luồng xử lý khi người dùng đặt câu hỏi (được triển khai trong backend và `streamlit_app.py`):
+
+1. **Routing & Guardrails (Kiểm tra khẩn cấp):** 
+   - Phân tích từ khóa để nhận diện các tình huống khẩn cấp (cháy nổ, cấp cứu, tội phạm).
+   - Nếu là khẩn cấp, bot trả lời ngay lập tức số điện thoại trực ban (113, 114, 115) mà không cần gọi LLM, đảm bảo an toàn.
+2. **Retrieval (Truy xuất ngữ cảnh):** 
+   - Mã hóa câu hỏi của người dùng thành vector qua thư viện `ContextRetriever`.
+   - Truy vấn trong FAISS để lấy ra Top-K chunks có độ tương đồng ngữ nghĩa cao nhất.
+3. **Reasoning (Đánh giá thông tin):**
+   - Đánh giá xem câu hỏi có đủ ý nghĩa để truy xuất không (`ReasoningChain`).
+   - Nếu dữ liệu FAISS không trả về thông tin khớp, bot từ chối trả lời để tránh tình trạng ảo giác (Hallucination).
+4. **Generation (Sinh văn bản):**
+   - Nối các chunks lại làm ngữ cảnh (Context) và đưa vào Prompt Template cùng câu hỏi.
+   - Gửi Prompt tới LLM (OpenAI/Gemini) với tham số `temperature=0.3` để đảm bảo tính khách quan và văn phong hành chính.
+   - LLM sinh câu trả lời dưới dạng Stream (từng chữ một) và hiển thị trực tiếp lên giao diện Streamlit/FastAPI, kèm theo danh sách tài liệu trích dẫn rành mạch.
+
+---
+
+## 4. Tối ưu hóa hệ thống (RAG Optimization)
+Dựa trên phân tích (từ file `rag_optimization_analysis.md`), các điểm yếu của Baseline đã được cải thiện:
+
+### 4.1. Vấn đề LLM trả về tên file PDF thay vì câu trả lời
+- **Nguyên nhân:** Khả năng trích xuất văn bản từ PDF scan kém, hoặc System Prompt chưa đủ nghiêm ngặt.
+- **Giải pháp:** 
+  - Bổ sung `pdfplumber` (hoặc dùng OCR) để đọc PDF tốt hơn, chống lỗi rỗng chunk.
+  - Tối ưu lại System Prompt: *"You MUST directly answer the question using the provided context. DO NOT ask the user to read or download the source files."*
+  - Xử lý lỗi UI (ẩn badge nguồn tài liệu nếu sinh văn bản bị lỗi/rỗng).
+
+### 4.2. Vấn đề tốc độ phản hồi chậm (High Latency)
+- **Nguyên nhân:** Mô hình embedding quá nặng, chunk size quá lớn, hoặc API request bị chặn đứng đến khi load xong (block API).
+- **Giải pháp:**
+  - **Streaming Output:** Áp dụng luồng Stream cho LLM, giúp frontend hiển thị chữ ngay lập tức khi LLM đang suy nghĩ.
+  - **Mô hình Embedding nhẹ hơn:** Chuyển từ các mô hình lớn (2.2GB) sang `vietnamese-sbert` hoặc e5-small để tăng tốc CPU inference.
+  - **Tối ưu ngữ cảnh:** Thu gọn `CHUNK_SIZE` để giảm tải Token cho LLM, qua đó giảm thời gian sinh token của LLM.
+
+---
+**Kết luận:** Dự án đã phát triển từ một kiến trúc Backend cơ bản với RAG pipeline thô sang một giải pháp hoàn chỉnh, có giao diện dễ sử dụng bằng Streamlit, Indexing tự động, cùng với khả năng sinh luồng và trích xuất nguồn văn bản đáng tin cậy.
