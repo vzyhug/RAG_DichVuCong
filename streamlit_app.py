@@ -112,9 +112,18 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
         
         async def fetch_llm_stream():
             model_name = settings.OPENAI_MODEL if settings.LLM_PROVIDER == "openai" else settings.GEMINI_MODEL
+            
+            # Lọc lấy lịch sử chat (loại bỏ trường 'contexts' và câu hỏi hiện tại)
+            history_messages = [
+                {"role": msg["role"], "content": msg["content"]} 
+                for msg in st.session_state.messages[:-1]
+            ]
+            # Nối lịch sử với câu hỏi hiện tại (đã kèm ngữ cảnh tài liệu)
+            messages_for_llm = history_messages + [{"role": "user", "content": prompt_text}]
+
             stream = await llm_client.chat.completions.create(
                 model=model_name,
-                messages=[{"role": "user", "content": prompt_text}],
+                messages=messages_for_llm,
                 temperature=0.3,
                 max_tokens=2048,
                 stream=True
