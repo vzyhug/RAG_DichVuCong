@@ -53,9 +53,14 @@ for msg in st.session_state.messages:
         # Hiển thị nguồn trích dẫn nếu có
         if "contexts" in msg and msg["contexts"]:
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
-                for idx, ctx in enumerate(msg["contexts"]):
+                for idx, ctx in enumerate(msg["contexts"][:3]):
                     clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    # Lấy 500 ký tự đầu để tóm tắt nếu quá dài
+                    if len(clean_text) > 500:
+                        clean_text = clean_text[:500] + "..."
                     st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
+                if len(msg["contexts"]) > 3:
+                    st.markdown(f"*(Và {len(msg['contexts']) - 3} nguồn khác...)*")
 
 # Khung nhập câu hỏi
 if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
@@ -100,9 +105,13 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
             st.markdown(clar)
             
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
-                for idx, ctx in enumerate(contexts):
+                for idx, ctx in enumerate(contexts[:3]):
                     clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    if len(clean_text) > 500:
+                        clean_text = clean_text[:500] + "..."
                     st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
+                if len(contexts) > 3:
+                    st.markdown(f"*(Và {len(contexts) - 3} nguồn khác...)*")
                     
             st.session_state.messages.append({"role": "assistant", "content": clar, "contexts": contexts})
             st.stop()
@@ -144,9 +153,13 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
             message_placeholder.markdown(full_response)
             
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
-                for idx, ctx in enumerate(contexts):
+                for idx, ctx in enumerate(contexts[:3]):
                     clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    if len(clean_text) > 500:
+                        clean_text = clean_text[:500] + "..."
                     st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
+                if len(contexts) > 3:
+                    st.markdown(f"*(Và {len(contexts) - 3} nguồn khác...)*")
                     
             st.session_state.messages.append({"role": "assistant", "content": full_response, "contexts": contexts})
         except Exception as e:
