@@ -3,6 +3,7 @@ import json
 import asyncio
 import os
 import sys
+import re
 
 # Thêm đường dẫn gốc để import
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -53,7 +54,8 @@ for msg in st.session_state.messages:
         if "contexts" in msg and msg["contexts"]:
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
                 for idx, ctx in enumerate(msg["contexts"]):
-                    st.markdown(f"**Nguồn {idx + 1}:**\n{ctx.get('text', '')}")
+                    clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
 
 # Khung nhập câu hỏi
 if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
@@ -99,13 +101,14 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
             
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
                 for idx, ctx in enumerate(contexts):
-                    st.markdown(f"**Nguồn {idx + 1}:**\n{ctx.get('text', '')}")
+                    clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
                     
             st.session_state.messages.append({"role": "assistant", "content": clar, "contexts": contexts})
             st.stop()
 
         # 4. LLM Generation
-        context_text = "\n---\n".join([c.get('text', '') for c in contexts])
+        context_text = "\n---\n".join([re.sub(r'\.{3,}', '', c.get('text', '')) for c in contexts])
         prompt_text = build_prompt(context_text, prompt)
         
         message_placeholder = st.empty()
@@ -142,7 +145,8 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
             
             with st.expander("Nguồn tài liệu trích dẫn", expanded=False):
                 for idx, ctx in enumerate(contexts):
-                    st.markdown(f"**Nguồn {idx + 1}:**\n{ctx.get('text', '')}")
+                    clean_text = re.sub(r'\.{3,}', '', ctx.get('text', ''))
+                    st.markdown(f"**Nguồn {idx + 1}:**\n{clean_text}")
                     
             st.session_state.messages.append({"role": "assistant", "content": full_response, "contexts": contexts})
         except Exception as e:
