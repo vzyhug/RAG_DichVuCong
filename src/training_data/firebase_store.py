@@ -6,6 +6,7 @@ import logging
 import os
 from threading import Lock
 from typing import Any
+from datetime import datetime, timezone
 
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,11 @@ def update_chat_feedback(turn_id: str, feedback: dict) -> bool:
         document = _find_chat_document(collection, turn_id)
         if document is None:
             return False
-        document.reference.update({"feedback": dict(feedback)})
+        feedback_payload = dict(feedback)
+        feedback_payload.setdefault(
+            "feedback_at", datetime.now(timezone.utc).isoformat()
+        )
+        document.reference.update({"feedback": feedback_payload})
         return True
     except Exception:
         logger.warning("Firebase chat feedback update failed", exc_info=True)
