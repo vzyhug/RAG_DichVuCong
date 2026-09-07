@@ -12,6 +12,16 @@ class Settings:
 
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+    ENABLE_FIREBASE_LOGGING = os.getenv("ENABLE_FIREBASE_LOGGING", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    FIREBASE_CREDENTIALS_PATH = os.getenv(
+        "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
+    )
+    FIREBASE_COLLECTION = os.getenv("FIREBASE_COLLECTION", "chat_logs")
 
     # LLM
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
