@@ -13,7 +13,7 @@ from typing import Any, Iterable
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_SFT_PATH = ROOT_DIR / "data" / "training" / "exports" / "sft_dataset.jsonl"
 DEFAULT_PREFERENCE_PATH = (
-    ROOT_DIR / "data" / "training" / "exports" / "preference_dataset.jsonl"
+    ROOT_DIR / "data" / "training" / "exports" / "sft_dataset.jsonl"
 )
 
 _EMAIL_RE = re.compile(
