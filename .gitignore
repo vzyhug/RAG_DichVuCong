@@ -67,6 +67,3 @@ venv.bak/
 .pytype/
 # Firebase private key
 firebase-service-account.json
-
-# Generated only after Task 7 selection and artifact validation.
-deployment/selected_model.json

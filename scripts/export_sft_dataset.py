@@ -1,11 +1,4 @@
-"""Export reviewed Firebase chat logs as a supervised fine-tuning dataset.
-
-The exporter follows the current Firestore schema: ``user_query`` is the
-question, ``assistant_answer`` is the generated answer, ``feedback.rating`` is
-the user rating, ``review_status`` stores raw/approved/rejected/edited, and
-``corrected_answer`` stores a human edit. Ratings are retained as review
-metadata but do not approve a sample by themselves.
-"""
+"""Export reviewed Firebase chat logs as a supervised fine-tuning dataset."""
 
 from __future__ import annotations
 
@@ -32,7 +25,6 @@ SYSTEM_MESSAGE = (
     "You are the official virtual assistant for An Vien commune police. "
     "Answer citizens accurately using the provided legal and administrative knowledge."
 )
-_EXPORTABLE_REVIEW_STATUSES = {"approved", "edited"}
 
 
 def _text(record: dict[str, Any], field: str) -> str:
@@ -40,50 +32,28 @@ def _text(record: dict[str, Any], field: str) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def _record_sort_key(record: dict[str, Any]) -> tuple[str, ...]:
-    """Return stable ordering keys for records returned in arbitrary Firestore order."""
-    return (
-        _text(record, "created_at"),
-        _text(record, "turn_id"),
-        _text(record, "document_id"),
-        _text(record, "user_query"),
-        _text(record, "assistant_answer"),
-        _text(record, "corrected_answer"),
-        json.dumps(record, ensure_ascii=False, sort_keys=True, default=str),
-    )
-
-
 def build_sft_examples(logs: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Build deterministic SFT rows from reviewed Firebase records.
-
-    The review implementation stores approval/rejection as ``review_status``.
-    An ``edited`` record is usable only when its ``corrected_answer`` is
-    present; an ``approved`` record uses its original ``assistant_answer``.
-    Raw, rejected, malformed, and empty records are excluded.
-    """
+    """Build SFT rows from approved or edited records."""
     examples: list[dict[str, Any]] = []
-    records = sorted(
-        (record for record in logs if isinstance(record, dict)),
-        key=_record_sort_key,
-    )
-    for record in records:
-        review_status = record.get("review_status")
-        if review_status not in _EXPORTABLE_REVIEW_STATUSES:
+    for record in logs:
+        if not isinstance(record, dict):
+            continue
+        if record.get("review_status") not in {"approved", "edited"}:
             continue
 
         redacted = redact_record(record)
-        answer_field = "corrected_answer" if review_status == "edited" else "assistant_answer"
-        user_query = _text(redacted, "user_query")
-        assistant_answer = _text(redacted, answer_field)
-        if not user_query or not assistant_answer:
-            continue
-
+        answer_field = (
+            "corrected_answer"
+            if record.get("review_status") == "edited"
+            and _text(record, "corrected_answer")
+            else "assistant_answer"
+        )
         examples.append(
             {
                 "messages": [
                     {"role": "system", "content": SYSTEM_MESSAGE},
-                    {"role": "user", "content": user_query},
-                    {"role": "assistant", "content": assistant_answer},
+                    {"role": "user", "content": _text(redacted, "user_query")},
+                    {"role": "assistant", "content": _text(redacted, answer_field)},
                 ]
             }
         )

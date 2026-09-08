@@ -16,10 +16,7 @@ class ReasoningChain:
                 selected_chunk = chunk
                 break
         if selected_chunk is None:
-            # The current vector index stores source/category metadata but does
-            # not include the optional intent schema. Retrieved context is still
-            # sufficient for grounded generation, so do not block the LLM path.
-            return {"ready": True}
+            return {"ready": False, "clarification": "Anh/chị vui lòng cung cấp thêm thông tin cụ thể hơn."}
 
         required = selected_chunk.get('required_entities', [])
         if not required:
