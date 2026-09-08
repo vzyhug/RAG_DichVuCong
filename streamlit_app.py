@@ -13,6 +13,7 @@ from src.rag_flow.context_retriever import ContextRetriever
 from src.rag_flow.reasoning_chain import ReasoningChain
 from src.llm.model_factory import LLMFactory
 from src.llm.prompt_templates import build_prompt
+from src.llm.service import LLMService
 from src.training_data.collector import collect_chat_log
 from src.training_data.firebase_store import (
     list_chat_logs,
@@ -33,7 +34,7 @@ st.set_page_config(
 def load_rag_components_v2():
     retriever = ContextRetriever()
     reasoning = ReasoningChain()
-    llm_client = LLMFactory.get_llm()
+    llm_service = LLMService()
     chunks = []
     try:
         with open(settings.CHUNKS_FILE, 'r', encoding='utf-8') as f:
@@ -41,7 +42,7 @@ def load_rag_components_v2():
                 chunks.append(json.loads(line))
     except Exception as e:
         st.warning(f"Lỗi khi load chunks: {e}")
-    return retriever, reasoning, llm_client, chunks
+    return retriever, reasoning, llm_service, chunks
 
 
 def _context_filename(context):
@@ -153,7 +154,7 @@ if page == "Review data":
     render_review_data()
     st.stop()
 
-retriever, reasoning, llm_client, chunks = load_rag_components_v2()
+retriever, reasoning, llm_service, chunks = load_rag_components_v2()
 
 # Giao diện chính
 st.title("🚓 Trợ lý Ảo - Công an xã An Viên")
@@ -174,7 +175,7 @@ def log_response(
         response_type=response_type,
         contexts=contexts,
         entities=entities,
-        model=settings.OPENAI_MODEL if settings.LLM_PROVIDER == "openai" else settings.GEMINI_MODEL,
+        model=LLMFactory.get_model_name(),
         provider=settings.LLM_PROVIDER,
         session_id=st.session_state.session_id,
         turn_id=turn_id,
@@ -279,8 +280,6 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
         message_placeholder = st.empty()
         
         async def fetch_llm_stream():
-            model_name = settings.OPENAI_MODEL if settings.LLM_PROVIDER == "openai" else settings.GEMINI_MODEL
-            
             # Lọc lấy lịch sử chat (loại bỏ trường 'contexts' và câu hỏi hiện tại)
             history_messages = [
                 {"role": msg["role"], "content": msg["content"]} 
@@ -289,19 +288,14 @@ if prompt := st.chat_input("Nhập câu hỏi của bạn tại đây..."):
             # Nối lịch sử với câu hỏi hiện tại (đã kèm ngữ cảnh tài liệu)
             messages_for_llm = history_messages + [{"role": "user", "content": prompt_text}]
 
-            stream = await llm_client.chat.completions.create(
-                model=model_name,
-                messages=messages_for_llm,
-                temperature=0.3,
-                max_tokens=2048,
-                stream=True
-            )
             full_response = ""
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    delta = chunk.choices[0].delta.content
-                    full_response += delta
-                    message_placeholder.markdown(full_response + "▌")
+            async for delta in llm_service.stream_chat(
+                messages_for_llm,
+                temperature=0.3,
+                max_tokens=settings.RESPONSE_MAX_TOKENS,
+            ):
+                full_response += delta
+                message_placeholder.markdown(full_response + "▌")
             return full_response
 
         try:

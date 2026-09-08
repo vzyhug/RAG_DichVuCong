@@ -10,8 +10,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from src.api.schemas import ChatRequest, ChatResponse
 from src.rag_flow.context_retriever import ContextRetriever
 from src.rag_flow.reasoning_chain import ReasoningChain
-from src.llm.model_factory import LLMFactory
 from src.llm.prompt_templates import build_prompt
+from src.llm.model_factory import LLMFactory
+from src.llm.service import LLMService
 from src.utils.logger import setup_logger
 from configs.settings import settings
 
@@ -33,10 +34,35 @@ async def serve_ui():
 
 logger = setup_logger()
 
+
+def _rag_diagnostics(query, contexts):
+    """Return non-secret retrieval/provider diagnostics for the chat stream."""
+    document_ids = []
+    for context in contexts:
+        if isinstance(context, dict):
+            metadata = context.get("metadata", {})
+            metadata = metadata if isinstance(metadata, dict) else {}
+            identifier = (
+                metadata.get("document_id")
+                or metadata.get("source")
+                or metadata.get("filename")
+                or context.get("document_id")
+            )
+        else:
+            identifier = None
+        document_ids.append(identifier or "unknown")
+    return {
+        "query": query,
+        "retrieved_document_ids": document_ids,
+        "retrieved_chunks": len(contexts),
+        "provider": settings.LLM_PROVIDER,
+        "model": LLMFactory.get_model_name(),
+    }
+
 # Khởi tạo các thành phần
 retriever = ContextRetriever()
 reasoning = ReasoningChain()
-llm_client = LLMFactory.get_llm()
+llm_service = LLMService()
 
 # Load chunks để dùng cho reasoning
 chunks = []
@@ -75,11 +101,28 @@ async def chat(request: ChatRequest):
     context_result = retriever.get_context(query)
     contexts = context_result.get("contexts", [])
     entities = context_result.get("entities", {})
+    diagnostics = _rag_diagnostics(query, contexts)
+    logger.info(
+        "RAG retrieval: query=%r provider=%s model=%s chunks=%d document_ids=%s",
+        query,
+        diagnostics["provider"],
+        diagnostics["model"],
+        diagnostics["retrieved_chunks"],
+        diagnostics["retrieved_document_ids"],
+    )
 
     # 3. Guardrail: Từ chối trả lời nếu không có ngữ cảnh nào khớp (Dẹp TOP-K ép buộc)
     if not contexts:
         async def no_data_stream():
-            meta = json.dumps({"emergency": False, "need_clarification": False, "contexts": []}, ensure_ascii=False)
+            meta = json.dumps(
+                {
+                    "emergency": False,
+                    "need_clarification": False,
+                    "contexts": [],
+                    **diagnostics,
+                },
+                ensure_ascii=False,
+            )
             yield f"data: {meta}\n\n"
             ans = "Xin lỗi, dữ liệu hiện tại không đủ cung cấp câu trả lời cho bạn."
             yield f"data: {json.dumps({'delta': ans}, ensure_ascii=False)}\n\n"
@@ -93,7 +136,16 @@ async def chat(request: ChatRequest):
     if not reasoning_result.get("ready"):
         clar = reasoning_result.get("clarification", "Anh/chị vui lòng cung cấp thêm thông tin cụ thể.")
         async def clarification_stream():
-            meta = json.dumps({"emergency": False, "need_clarification": True, "contexts": contexts, "clarification": clar}, ensure_ascii=False)
+            meta = json.dumps(
+                {
+                    "emergency": False,
+                    "need_clarification": True,
+                    "contexts": contexts,
+                    "clarification": clar,
+                    **diagnostics,
+                },
+                ensure_ascii=False,
+            )
             yield f"data: {meta}\n\n"
             yield f"data: {json.dumps({'delta': clar}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
@@ -103,27 +155,36 @@ async def chat(request: ChatRequest):
     # Chỉ dùng những chunk đã vượt qua được Similarity Threshold
     context_text = "\n---\n".join([c.get('text', '') for c in contexts])
     prompt = build_prompt(context_text, query)
+    logger.debug("RAG prompt: %s", prompt)
 
     async def llm_stream():
-        meta = json.dumps({"emergency": False, "need_clarification": False, "contexts": contexts}, ensure_ascii=False)
+        meta = json.dumps(
+            {
+                "emergency": False,
+                "need_clarification": False,
+                "contexts": contexts,
+                **diagnostics,
+            },
+            ensure_ascii=False,
+        )
         yield f"data: {meta}\n\n"
         try:
-            model_name = settings.OPENAI_MODEL if settings.LLM_PROVIDER == "openai" else settings.GEMINI_MODEL
-            stream = await llm_client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=2048,
-                stream=True
-            )
             full_content = ""
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    delta = chunk.choices[0].delta.content
-                    full_content += delta
-                    yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+            async for delta in llm_service.stream_chat(
+                [{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=settings.RESPONSE_MAX_TOKENS,
+            ):
+                full_content += delta
+                yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
             
             logger.info("LLM stream finished successfully.")
+            logger.info(
+                "RAG answer: query=%r provider=%s answer=%r",
+                query,
+                diagnostics["provider"],
+                full_content,
+            )
             if not full_content.strip():
                 fallback = "Xin lỗi, hiện tại tôi chưa tìm thấy thông tin chi tiết hoặc câu trả lời chưa sẵn sàng. Anh/chị vui lòng thử lại hoặc liên hệ trực tiếp cơ quan công an."
                 yield f"data: {json.dumps({'delta': fallback}, ensure_ascii=False)}\n\n"

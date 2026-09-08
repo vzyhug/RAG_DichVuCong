@@ -1,0 +1,27 @@
+{
+  "dataset": "data/eval/eval_questions.jsonl",
+  "training_data": [
+    "data/training/exports/sft_dataset.jsonl",
+    "data/training/exports/sft_dataset_sharegpt.jsonl",
+    "data/training/exports/preference_dataset.jsonl"
+  ],
+  "base": {
+    "model": "qwen2.5:3b-instruct",
+    "base_url": "http://localhost:11434/v1",
+    "api_key_env": "LOCAL_LLM_API_KEY"
+  },
+  "sft": {
+    "model": null,
+    "base_url": "http://localhost:11434/v1",
+    "api_key_env": "LOCAL_LLM_API_KEY"
+  },
+  "dpo": {
+    "model": null,
+    "base_url": "http://localhost:11434/v1",
+    "api_key_env": "LOCAL_LLM_API_KEY"
+  },
+  "temperature": 0.0,
+  "max_tokens": 768,
+  "stability_runs": 3,
+  "retrieval": true
+}

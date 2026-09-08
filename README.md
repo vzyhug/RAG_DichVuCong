@@ -28,10 +28,11 @@ Dự án được xây dựng tối giản để ai cũng có thể hiểu và c
    GEMINI_API_KEY=your_api_key_here
    GEMINI_MODEL=gemini-3.5-flash-lite
    EMBEDDING_MODEL=intfloat/multilingual-e5-small
-   TOP_K=10
+   TOP_K=3
    CHUNK_SIZE=2500
    CHUNK_OVERLAP=400
    SIMILARITY_THRESHOLD=0.70
+   RESPONSE_MAX_TOKENS=768
    ```
 
 3. **Nạp kiến thức mới cho Chatbot:**
@@ -45,9 +46,52 @@ Dự án được xây dựng tối giản để ai cũng có thể hiểu và c
    streamlit run streamlit_app.py
    ```
 
+### Local LLM
+
+The Streamlit and FastAPI runtimes use the configured `LLMFactory` provider.
+To use a local OpenAI-compatible server, set:
+
+```env
+LLM_PROVIDER=local
+LOCAL_LLM_URL=http://localhost:11434/v1
+LOCAL_LLM_MODEL=qwen2.5:3b-instruct
+```
+
+The RAG retriever and prompt builder are unchanged. A local connection error
+shows the selected provider, model, and endpoint during development without
+exposing API keys.
+
+For Task 7 model selection and vLLM serving, follow
+[`deployment/README.md`](deployment/README.md). The serving preparation command
+fails closed until an evaluation summary and a deployable Base, SFT, or DPO
+artifact are present.
+
+### Base vs SFT vs DPO evaluation
+
+Evaluation inputs live under `data/eval/`, separately from the SFT exports.
+Configure a real SFT checkpoint or serving-model name in
+`configs/evaluation.json`, then run:
+
+```bash
+python scripts/evaluate_base_vs_sft.py --output-dir evaluation
+```
+
+The runner retrieves context once per question and sends the same rendered
+prompt to Base, SFT, and the optional DPO model. It verifies that the held-out
+questions are absent from SFT and DPO training exports, then writes separate
+JSONL results and `evaluation/comparison_report.md`. If the DPO checkpoint is
+not configured, DPO remains explicitly pending and is not ranked.
+
 ## ☁️ Đưa Chatbot lên mạng (Triển khai lên Hugging Face)
 Ứng dụng này cực kỳ nhẹ và có thể chạy tẹt ga 24/7 hoàn toàn miễn phí trên Hugging Face:
 1. Tạo một **Streamlit Space** mới trên Hugging Face.
 2. Cấu hình máy chủ: Chọn loại **CPU basic** (Miễn phí).
 3. Vào mục **Settings > Variables and secrets**, thêm biến `GEMINI_API_KEY`.
 4. Upload toàn bộ thư mục code (nhớ upload kèm thư mục `data/processed` để Chatbot có sẵn kiến thức) lên Space là xong! Ứng dụng sẽ tự động khởi chạy để phục vụ người dân.
+
+## Final validation and runbook
+
+The final end-to-end validation evidence, architecture, limitations, and exact
+PowerShell commands for application startup, Firebase exports, training,
+evaluation, and deployment are in
+[`docs/final_validation_report.md`](docs/final_validation_report.md).

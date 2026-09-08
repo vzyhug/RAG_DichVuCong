@@ -1,294 +1,262 @@
-# Task Plan: Thu thap Q&A de retrain va hoc tang cuong
-
-Muc tieu: them pipeline thu thap cau hoi/cau tra loi tu Streamlit, luu len Firebase Firestore, co feedback/review, va export du lieu cho fine-tuning/preference learning.
+Kiến Trúc Khi Đổi Sang Local LLM
+  Project hiện đã có LLMFactory, nên về lý thuyết chỉ cần thêm provider local:
 
-Nguyen tac:
-- Khong commit `firebase-service-account.json`.
-- Firebase loi khong duoc lam chatbot dung.
-- Khong train truc tiep tu raw logs.
-- Chi export du lieu da review va da redact PII.
+  Streamlit
+  -> RAG retriever hiện tại
+  -> build_prompt
+  -> Local LLM server OpenAI-compatible
+  -> trả lời
 
-## Thu tu thuc hien
+  Tức là không cần viết lại toàn bộ app. Chỉ cần chạy local model qua server có API tương thích OpenAI.
 
-```text
-T1 -> T2 -> T3 -> T4 -> T5
-```
+  Ví dụ:
 
-Co the chay song song:
-- Sau `T2`, co the tach `T3` va `T4` cho 2 agent khac nhau neu kiem soat conflict tot.
+  Ollama
+  vLLM
+  LM Studio
+  Text Generation Inference
+  llama.cpp server
 
-Khong nen chay song song:
-- Nhieu agent cung sua `streamlit_app.py`.
-- Nhieu agent cung sua `src/training_data/firebase_store.py`.
+  Project đã dùng kiểu OpenAI client:
 
----
+  llm_client.chat.completions.create(...)
 
-## T1 - Firebase base config
+  Nên nếu server local hỗ trợ OpenAI-compatible API, chỉ cần config:
 
-Uu tien: P0
+  LLM_PROVIDER=local
+  LOCAL_LLM_URL=http://localhost:11434/v1
+  LOCAL_LLM_MODEL=qwen2.5:7b-instruct
 
-Muc tieu: project san sang ket noi Firebase, khong lo private key.
+  Nhưng hiện src/llm/model_factory.py:10 đang gọi settings.LOCAL_LLM_URL, trong khi configs/settings.py chưa có biến này. Cần bổ sung.
 
-File lien quan:
-- `.gitignore`
-- `.env`
-- `requirements.txt`
-- `configs/settings.py` neu can
+  Model Nên Dùng
+  Với tiếng Việt + pháp luật/thủ tục, ưu tiên:
 
-Prompt cho agent:
+  Qwen2.5/Qwen3 Instruct
+  Llama 3.1/3.2 Instruct
+  Mistral/Nemo Instruct
 
-```text
-Kiem tra va bo sung Firebase base config cho project.
-
-Yeu cau:
-- `requirements.txt` co `firebase-admin`.
-- `.gitignore` ignore dung `firebase-service-account.json`.
-- Khong track/commit Firebase private key.
-- Them settings/env neu can:
-  - ENABLE_FIREBASE_LOGGING, default false
-  - FIREBASE_CREDENTIALS_PATH
-  - FIREBASE_COLLECTION, default `chat_logs`
-- Neu doc `.env`, khong in gia tri secret.
-- Khong sua logic chatbot.
-```
-
-Done when:
-- Dependency va ignore key dung.
-- Khong co private key trong git status/staged.
+  Thực tế tiếng Việt, tôi sẽ ưu tiên:
 
----
+  Qwen2.5-7B-Instruct
+  Qwen2.5-14B-Instruct nếu máy đủ mạnh
 
-## T2 - Logging Q&A len Firebase
+  Nếu máy yếu:
 
-Uu tien: P0
+  Qwen2.5-3B-Instruct
 
-Phu thuoc: T1
+  Cấu Hình Theo Máy
+  Nếu không có GPU mạnh:
 
-Muc tieu: moi cau hoi/cau tra loi tren Streamlit duoc luu len Firestore.
+  Ollama + Qwen 7B quantized
 
-File lien quan:
-- `src/training_data/__init__.py`
-- `src/training_data/firebase_store.py`
-- `src/training_data/collector.py`
-- `streamlit_app.py`
+  Dễ demo, dễ chạy, nhưng fine-tune thật không chạy trên Ollama. Ollama chủ yếu để inference.
 
-Prompt cho agent:
+  Nếu có GPU:
 
-```text
-Them pipeline logging Q&A len Firebase Firestore.
+  Fine-tune bằng LoRA/QLoRA
+  Inference bằng vLLM hoặc llama.cpp/Ollama
 
-Yeu cau:
-- Tao package `src/training_data/`.
-- Tao `firebase_store.py`:
-  - init firebase-admin an toan, tranh init nhieu lan
-  - doc ENABLE_FIREBASE_LOGGING, FIREBASE_CREDENTIALS_PATH, FIREBASE_COLLECTION
-  - ham `save_chat_log(record: dict) -> str | None`
-  - disabled/thieu credentials/Firebase loi thi log warning va return None
-- Tao `collector.py`:
-  - ham `build_chat_record(...) -> dict`
-  - ham `collect_chat_log(...) -> str | None`
-  - record gom: session_id, turn_id, created_at, user_query, assistant_answer, response_type, contexts, entities, model, provider, review_status="raw", feedback=null, corrected_answer=null
-  - tao UUID neu thieu session_id/turn_id
-  - contexts chi luu text, metadata, score
-- Gan vao `streamlit_app.py`:
-  - tao session_id co dinh trong st.session_state
-  - log du cac nhanh: normal, clarification, no_data, emergency, error
-  - khong doi flow tra loi hien tai
-  - neu save thanh cong thi luu `last_logged_turn_id`
-```
-
-Done when:
-- Hoi bot tren Streamlit, Firestore co document moi trong `chat_logs`.
-- Chatbot van chay neu Firebase tat hoac loi.
-
----
-
-## T3 - Feedback va review noi bo
-
-Uu tien: P1
-
-Phu thuoc: T2
-
-Muc tieu: co nut danh gia cau tra loi va man hinh review/sua du lieu truoc khi train.
-
-File lien quan:
-- `src/training_data/firebase_store.py`
-- `streamlit_app.py`
-
-Prompt cho agent:
-
-```text
-Them feedback nguoi dung va review noi bo cho du lieu Q&A.
-
-Yeu cau trong `firebase_store.py`:
-- Them `update_chat_feedback(turn_id: str, feedback: dict) -> bool`
-- Them `list_chat_logs(limit=100, review_status=None, rating=None) -> list[dict]`
-- Them `update_review_status(turn_id, review_status, corrected_answer=None, error_type=None) -> bool`
-- Firebase loi/disabled thi return False hoac list rong, khong crash app
-
-Yeu cau trong `streamlit_app.py`:
-- Sau moi cau tra loi co turn_id, hien thi feedback:
-  - Huu ich -> rating up
-  - Khong huu ich -> rating down
-  - Sai thong tin -> rating wrong
-- Tranh gui feedback nhieu lan cho cung turn trong cung session.
-- Them sidebar selectbox: Chatbot / Review data.
-- Review data hien thi logs tu Firebase:
-  - user_query
-  - assistant_answer
-  - response_type
-  - feedback
-  - contexts filename/score
-- Cho admin nhap corrected_answer, error_type.
-- Cho chon review_status: raw/approved/rejected/edited.
-- Luu review_status len Firebase.
-```
-
-Done when:
-- Feedback cap nhat duoc tren Firestore.
-- Admin co the approved/rejected/edited mot log.
-
----
-
-## T4 - Redact PII va export dataset train
-
-Uu tien: P2
-
-Phu thuoc: T3
-
-Muc tieu: tao duoc dataset fine-tuning va preference learning tu du lieu da review.
-
-File lien quan:
-- `src/training_data/anonymizer.py`
-- `scripts/export_sft_dataset.py`
-- `scripts/export_preference_dataset.py`
-- `data/training/exports/`
-
-Prompt cho agent:
-
-```text
-Them anonymizer va script export dataset train.
-
-Yeu cau anonymizer:
-- Tao `src/training_data/anonymizer.py`
-- Ham `redact_pii(text: str) -> str`
-- Redact:
-  - so dien thoai Viet Nam -> [PHONE]
-  - CCCD/CMND 9-12 so -> [ID_NUMBER]
-  - email -> [EMAIL]
-  - ma ho so dang chu+so dai -> [CASE_ID]
-- Ham `redact_record(record: dict) -> dict`
-
-Yeu cau export SFT:
-- Tao `scripts/export_sft_dataset.py`
-- Doc logs tu Firebase
-- Chi lay review_status approved hoac edited
-- Neu edited va co corrected_answer thi dung corrected_answer
-- Redact PII truoc khi export
-- Output `data/training/exports/sft_dataset.jsonl`
-- Format:
-  {"messages":[{"role":"system","content":"..."},{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}
-
-Yeu cau export preference:
-- Tao `scripts/export_preference_dataset.py`
-- Doc logs tu Firebase
-- Chi tao sample khi co corrected_answer
-- chosen = corrected_answer
-- rejected = assistant_answer ban dau
-- Redact PII
-- Output `data/training/exports/preference_dataset.jsonl`
-- Format:
-  {"prompt":"...","chosen":"...","rejected":"...","reason":"..."}
-```
-
-Done when:
-- Export duoc `sft_dataset.jsonl`.
-- Export duoc `preference_dataset.jsonl`.
-- Du lieu export khong con PII raw co ban.
-
----
-
-## T5 - Demo docs va validate dataset
-
-Uu tien: P2
-
-Phu thuoc: T2 cho demo docs, T4 cho validate
-
-Muc tieu: co tai lieu demo cho sep va script kiem tra dataset.
-
-File lien quan:
-- `docs/firebase_demo.md`
-- `data/eval/eval_questions.jsonl`
-- `scripts/validate_training_exports.py`
-
-Prompt cho agent:
-
-```text
-Them tai lieu demo Firebase va cong cu validate dataset.
-
-Yeu cau docs:
-- Tao `docs/firebase_demo.md`
-- Huong dan:
-  - tao Firebase project
-  - bat Firestore
-  - tao service account
-  - dat `firebase-service-account.json` local
-  - cau hinh env
-  - chay Streamlit
-  - hoi bot va kiem tra Firestore collection `chat_logs`
-  - khong commit private key
-
-Yeu cau eval:
-- Tao `data/eval/eval_questions.jsonl`
-- 10 cau mau gom PCCC, dang ky xe, cu tru, thu tuc hanh chinh, no_data, emergency
-- Moi dong co question, expected_points, source_hint, category
-
-Yeu cau validate:
-- Tao `scripts/validate_training_exports.py`
-- Kiem tra SFT/preference JSONL hop le
-- Kiem tra SFT co role user/assistant
-- Kiem tra preference co prompt/chosen/rejected
-- Regex canh bao neu con phone/email/CCCD raw
-- In summary so mau hop le/loi/canh bao
-```
-
-Done when:
-- Co doc demo cho sep.
-- Co eval questions.
-- Co script validate export.
-
----
-
-## Milestone demo nhanh
-
-Chi can:
-
-```text
-T1
-T2
-T5 docs phan Firebase demo
-```
-
-Ket qua:
-- Streamlit chay.
-- Hoi bot xong du lieu xuat hien tren Firebase Console.
-- Sep khong can cai database hay tool phu.
-
-## Milestone retrain/RL day du
-
-Can:
-
-```text
-T1
-T2
-T3
-T4
-T5
-```
-
-Ket qua:
-- Co Q&A logs.
-- Co feedback.
-- Co review/corrected answer.
-- Co SFT dataset cho fine-tuning.
-- Co preference dataset cho DPO/RLHF/RLAIF sau nay.
+  VRAM tham khảo:
+
+  7B QLoRA: khoảng 12-16GB VRAM
+  14B QLoRA: khoảng 24GB+ VRAM
+
+  Luồng Chuyển Đổi Đề Xuất
+  Giai đoạn 1: Chạy local model thay Gemini
+
+  1. Cài Ollama hoặc LM Studio
+  2. Pull model Qwen/Llama
+  3. Bổ sung LOCAL_LLM_URL, LOCAL_LLM_MODEL trong settings
+  4. Sửa LLMFactory để dùng local model name
+  5. Test Streamlit
+
+  Ví dụ với Ollama:
+
+  ollama pull qwen2.5:7b-instruct
+  ollama serve
+
+  .env:
+
+  LLM_PROVIDER=local
+  LOCAL_LLM_URL=http://localhost:11434/v1
+  LOCAL_LLM_MODEL=qwen2.5:7b-instruct
+
+  Giai đoạn 2: Dùng dữ liệu Firebase để fine-tune
+
+  Firebase logs
+  -> Review data
+  -> Export sft_dataset.jsonl
+  -> Convert sang format Alpaca/ShareGPT nếu cần
+  -> Fine-tune Qwen/Llama bằng LoRA/QLoRA
+
+  Giai đoạn 3: Deploy model đã fine-tune
+
+  adapter LoRA + base model
+  -> merge hoặc load adapter
+  -> serve bằng vLLM/llama.cpp/Ollama Modelfile
+  -> app gọi LOCAL_LLM_URL
+
+  Format Dataset
+  Hiện project export dạng OpenAI messages:
+
+  {
+    "messages": [
+      {"role": "system", "content": "..."},
+      {"role": "user", "content": "..."},
+      {"role": "assistant", "content": "..."}
+    ]
+  }
+
+  Format này dùng được hoặc convert được cho hầu hết tool fine-tune như:
+
+  LLaMA-Factory
+  Axolotl
+  Unsloth
+  TRL
+
+  Nếu dùng LLaMA-Factory, có thể cần dataset dạng ShareGPT:
+
+  {
+    "conversations": [
+      {"from": "system", "value": "..."},
+      {"from": "human", "value": "..."},
+      {"from": "gpt", "value": "..."}
+    ]
+  }
+
+  Có thể viết script convert từ sft_dataset.jsonl sang ShareGPT.
+
+  Fine-Tune Thật Nên Làm Bằng Gì
+  Dễ nhất hiện nay:
+
+  Unsloth
+  LLaMA-Factory
+
+  Khuyến nghị cho bạn:
+
+  LLaMA-Factory + Qwen2.5-7B-Instruct + LoRA
+
+  Vì:
+
+  dễ cấu hình
+  hỗ trợ nhiều model
+  hỗ trợ SFT/DPO
+  dùng được dataset ShareGPT/Alpaca
+  phù hợp pipeline SFT + preference learning
+
+  Học Tăng Cường Với Local LLM
+  Sau khi có preference_dataset.jsonl:
+
+  {
+    "prompt": "...",
+    "chosen": "...",
+    "rejected": "..."
+  }
+
+  Có thể dùng:
+
+  DPO
+  ORPO
+  KTO
+  Reward model
+
+  Thực tế nên chọn:
+
+  DPO
+
+  Vì đơn giản hơn RLHF truyền thống, không cần build reward model riêng ngay.
+
+  Luồng:
+
+  SFT trước
+  -> model_sft
+  -> DPO bằng chosen/rejected
+  -> model_dpo
+  -> eval
+  -> deploy nếu tốt hơn
+
+  Điều Cần Lưu Ý
+  Fine-tune local model không tự cập nhật kiến thức pháp luật mới tốt bằng RAG. Vẫn phải giữ RAG.
+
+  Fine-tune chủ yếu cải thiện:
+
+  văn phong
+  format trả lời
+  cách hỏi lại
+  cách từ chối
+  cách bám context
+  khả năng trả lời ổn định theo mẫu đã duyệt
+
+  Không nên nhồi toàn bộ văn bản luật vào fine-tuning. Văn bản luật nên nằm trong RAG/chunks/vector index.
+
+  Phương Án Tối Ưu Cho Project
+  Tôi đề xuất 3 bước:
+
+  Bước 1: Giữ Gemini + hoàn thiện collect/review/export
+
+  Để demo nhanh.
+
+  Bước 2: Thêm local provider chạy Qwen qua Ollama
+
+  Để chứng minh app có thể đổi model.
+
+  Bước 3: Khi có đủ 300-1000 mẫu approved/edited, fine-tune Qwen bằng LoRA
+
+  Sau đó app gọi model fine-tuned qua OpenAI-compatible endpoint.
+
+  Tóm Lại
+  Đổi sang Qwen/Llama local thì hoàn toàn khả thi. Project của bạn đã gần sẵn vì đang dùng OpenAI-compatible client. Việc cần làm là:
+
+  1. Thêm LOCAL_LLM_URL và LOCAL_LLM_MODEL
+  2. Sửa LLMFactory/model selection
+  3. Chạy local model bằng Ollama/vLLM/LM Studio
+  4. Export dataset từ Firebase
+  5. Fine-tune Qwen/Llama bằng LoRA/QLoRA
+  6. Serve model fine-tuned
+  7. App gọi endpoint local thay Gemini
+
+  Với tiếng Việt, tôi khuyên bắt đầu bằng:
+
+  Qwen2.5-7B-Instruct + Ollama cho inference demo
+  Qwen2.5-7B-Instruct + LoRA bằng LLaMA-Factory/Unsloth cho fine-tuning thật
+=================================================================================
+Có thể chia nhóm chạy đồng thời như sau:
+Task 1: chạy một mình trước vì nó audit kiến trúc và xác định điểm tích hợp.
+Sau khi Task 1 xong, Task 2 và Task 3 có thể chạy song song nếu bạn tách ownership file rõ ràng:
+Task 2 phụ trách config + Firebase export
+Task 3 phụ trách LLM provider + dataset validation/conversion + preference dataset
+Sau khi Task 2 và 3 xong, Task 4 và Task 5 có thể chạy song song:
+Task 4 phụ trách Local LLM smoke test + SFT/LoRA training package
+Task 5 phụ trách Streamlit integration + Base vs SFT evaluation
+Sau đó Task 6 và Task 7 có thể chạy song song một phần nếu Task 7 chỉ chuẩn bị evaluation harness trước:
+Task 6: RAG regression + DPO training package
+Task 7: Base vs SFT vs DPO evaluation
+Nhưng phần chạy evaluation thật của Task 7 phải đợi DPO checkpoint từ Task 6.
+Task 8 phải đợi Task 7 để biết model nào được chọn deploy.
+Task 9 phải chạy cuối cùng sau Task 8 để E2E validation.
+============
+Task 1
+  │
+  ├───────────────┐
+  ▼               ▼
+Task 2          Task 3
+  │               │
+  └───────┬───────┘
+          ▼
+   ┌──────────────┐
+   ▼              ▼
+Task 4          Task 5
+   │              │
+   └───────┬──────┘
+           ▼
+    ┌─────────────┐
+    ▼             ▼
+ Task 6         Task 7*
+    │             │
+    └──────┬──────┘
+           ▼
+         Task 8
+           │
+           ▼
+         Task 9
