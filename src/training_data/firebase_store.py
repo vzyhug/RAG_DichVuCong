@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 from threading import Lock
 from typing import Any
 from datetime import datetime, timezone
@@ -26,7 +27,11 @@ def _is_enabled() -> bool:
     }
 
 
-def _get_firestore_client(credentials_path: str) -> Any | None:
+def _has_inline_credentials() -> bool:
+    return bool(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip())
+
+
+def _get_firestore_client(credentials_path: str | None = None) -> Any | None:
     """Return a cached Firestore client, initializing Firebase at most once."""
     global _firestore_client
 
@@ -41,9 +46,17 @@ def _get_firestore_client(credentials_path: str) -> Any | None:
             try:
                 app = firebase_admin.get_app()
             except ValueError:
-                app = firebase_admin.initialize_app(
-                    credentials.Certificate(credentials_path)
-                )
+                service_account_json = os.getenv(
+                    "FIREBASE_SERVICE_ACCOUNT_JSON", ""
+                ).strip()
+                if service_account_json:
+                    service_account_info = json.loads(service_account_json)
+                    firebase_credentials = credentials.Certificate(
+                        service_account_info
+                    )
+                else:
+                    firebase_credentials = credentials.Certificate(credentials_path)
+                app = firebase_admin.initialize_app(firebase_credentials)
 
             _firestore_client = firestore.client(app)
             return _firestore_client
@@ -61,11 +74,11 @@ def _get_chat_collection() -> Any | None:
     credentials_path = os.getenv(
         "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
     ).strip()
-    if not credentials_path:
+    if not _has_inline_credentials() and not credentials_path:
         logger.warning("Firebase credentials path is not configured")
         return None
 
-    if not os.path.isfile(credentials_path):
+    if not _has_inline_credentials() and not os.path.isfile(credentials_path):
         logger.warning("Firebase credentials file is missing: %s", credentials_path)
         return None
 
@@ -89,11 +102,11 @@ def _get_data_update_collection() -> Any | None:
     credentials_path = os.getenv(
         "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
     ).strip()
-    if not credentials_path:
+    if not _has_inline_credentials() and not credentials_path:
         logger.warning("Firebase credentials path is not configured")
         return None
 
-    if not os.path.isfile(credentials_path):
+    if not _has_inline_credentials() and not os.path.isfile(credentials_path):
         logger.warning("Firebase credentials file is missing: %s", credentials_path)
         return None
 
