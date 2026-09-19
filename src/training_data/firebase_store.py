@@ -80,6 +80,36 @@ def _get_chat_collection() -> Any | None:
     return client.collection(collection_name)
 
 
+def _get_data_update_collection() -> Any | None:
+    """Return the configured data-update request collection."""
+    if not _is_enabled():
+        logger.warning("Firebase data update request logging is disabled")
+        return None
+
+    credentials_path = os.getenv(
+        "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
+    ).strip()
+    if not credentials_path:
+        logger.warning("Firebase credentials path is not configured")
+        return None
+
+    if not os.path.isfile(credentials_path):
+        logger.warning("Firebase credentials file is missing: %s", credentials_path)
+        return None
+
+    collection_name = os.getenv(
+        "FIREBASE_DATA_UPDATE_COLLECTION", "data_update_requests"
+    ).strip()
+    if not collection_name:
+        logger.warning("Firebase data update collection is not configured")
+        return None
+
+    client = _get_firestore_client(credentials_path)
+    if client is None:
+        return None
+    return client.collection(collection_name)
+
+
 def _find_chat_document(collection: Any, turn_id: str) -> Any | None:
     """Find the first chat log for a turn ID."""
     documents = collection.where("turn_id", "==", turn_id).limit(1).stream()
@@ -177,6 +207,13 @@ def update_review_status(
     review_status: str,
     corrected_answer: str | None = None,
     error_type: str | None = None,
+    needs_data_update: bool | None = None,
+    data_update_note: str | None = None,
+    data_update_request_id: str | None = None,
+    github_issue_url: str | None = None,
+    github_issue_number: int | None = None,
+    github_project_item_id: str | None = None,
+    github_project_error: str | None = None,
 ) -> bool:
     """Save an admin review decision for a chat turn."""
     if not turn_id or review_status not in _REVIEW_STATUSES:
@@ -190,14 +227,55 @@ def update_review_status(
         document = _find_chat_document(collection, turn_id)
         if document is None:
             return False
-        document.reference.update(
-            {
-                "review_status": review_status,
-                "corrected_answer": corrected_answer,
-                "error_type": error_type,
-            }
-        )
+        update_payload = {
+            "review_status": review_status,
+            "corrected_answer": corrected_answer,
+            "error_type": error_type,
+        }
+        if needs_data_update is not None:
+            update_payload["needs_data_update"] = needs_data_update
+        if data_update_note is not None:
+            update_payload["data_update_note"] = data_update_note
+        if data_update_request_id is not None:
+            update_payload["data_update_request_id"] = data_update_request_id
+        if github_issue_url is not None:
+            update_payload["github_issue_url"] = github_issue_url
+        if github_issue_number is not None:
+            update_payload["github_issue_number"] = github_issue_number
+        if github_project_item_id is not None:
+            update_payload["github_project_item_id"] = github_project_item_id
+        if github_project_error is not None:
+            update_payload["github_project_error"] = github_project_error
+        document.reference.update(update_payload)
         return True
     except Exception:
         logger.warning("Firebase review status update failed", exc_info=True)
         return False
+
+
+def create_data_update_request(payload: dict) -> str | None:
+    """Persist a reviewed data-update request for developer follow-up."""
+    if not isinstance(payload, dict):
+        return None
+
+    try:
+        collection = _get_data_update_collection()
+        if collection is None:
+            return None
+
+        request_payload = dict(payload)
+        request_payload.setdefault("status", "open")
+        request_payload.setdefault("priority", "normal")
+        request_payload.setdefault(
+            "created_at", datetime.now(timezone.utc).isoformat()
+        )
+        result = collection.add(request_payload)
+        document = result[1] if isinstance(result, tuple) else result
+        document_id = getattr(document, "id", None)
+        if not document_id:
+            logger.warning("Firebase returned no document ID for data update request")
+            return None
+        return str(document_id)
+    except Exception:
+        logger.warning("Firebase data update request save failed", exc_info=True)
+        return None

@@ -1,21 +1,19 @@
-# Task Plan: Thu thap Q&A de retrain va hoc tang cuong
+# Task Plan: Thu thap Q&A de cai thien chunking/RAG va hoc tang cuong
 
-Muc tieu: them pipeline thu thap cau hoi/cau tra loi tu Streamlit, luu len Firebase Firestore, co feedback/review, va export du lieu cho fine-tuning/preference learning.
+Muc tieu: thu thap cau hoi/cau tra loi tu Streamlit, luu len Firebase Firestore, review loi truy xuat, roi dung log da duyet de cai thien chunking/re-index cua RAG. Khong fine-tune model API Gemini. Phan preference/RL van giu de tao cap chosen/rejected khi co cau tra loi da sua.
 
 Nguyen tac:
 - Khong commit `firebase-service-account.json`.
 - Firebase loi khong duoc lam chatbot dung.
-- Khong train truc tiep tu raw logs.
-- Chi export du lieu da review va da redact PII.
+- Raw logs khong dung truc tiep de train hay re-index; phai review va redact PII.
+- Q&A logs dung chinh de phat hien: sai chunk, thieu chunk, chunk qua ngan/dai, metadata kem, tai lieu nguon thieu/cu.
+- Preference/RL chi dung voi record co `corrected_answer`.
 
 ## Thu tu thuc hien
 
 ```text
 T1 -> T2 -> T3 -> T4 -> T5
 ```
-
-Co the chay song song:
-- Sau `T2`, co the tach `T3` va `T4` cho 2 agent khac nhau neu kiem soat conflict tot.
 
 Khong nen chay song song:
 - Nhieu agent cung sua `streamlit_app.py`.
@@ -58,13 +56,13 @@ Done when:
 
 ---
 
-## T2 - Logging Q&A len Firebase
+## T2 - Logging Q&A va retrieved chunks len Firebase
 
 Uu tien: P0
 
 Phu thuoc: T1
 
-Muc tieu: moi cau hoi/cau tra loi tren Streamlit duoc luu len Firestore.
+Muc tieu: moi cau hoi/cau tra loi tren Streamlit duoc luu len Firestore kem chunks da retrieve.
 
 File lien quan:
 - `src/training_data/__init__.py`
@@ -75,7 +73,7 @@ File lien quan:
 Prompt cho agent:
 
 ```text
-Them pipeline logging Q&A len Firebase Firestore.
+Them pipeline logging Q&A len Firebase Firestore de phuc vu review chunking/RAG.
 
 Yeu cau:
 - Tao package `src/training_data/`.
@@ -88,28 +86,26 @@ Yeu cau:
   - ham `build_chat_record(...) -> dict`
   - ham `collect_chat_log(...) -> str | None`
   - record gom: session_id, turn_id, created_at, user_query, assistant_answer, response_type, contexts, entities, model, provider, review_status="raw", feedback=null, corrected_answer=null
-  - tao UUID neu thieu session_id/turn_id
-  - contexts chi luu text, metadata, score
+  - contexts phai luu text, metadata, score de review chunk/re-index
 - Gan vao `streamlit_app.py`:
   - tao session_id co dinh trong st.session_state
   - log du cac nhanh: normal, clarification, no_data, emergency, error
   - khong doi flow tra loi hien tai
-  - neu save thanh cong thi luu `last_logged_turn_id`
 ```
 
 Done when:
 - Hoi bot tren Streamlit, Firestore co document moi trong `chat_logs`.
-- Chatbot van chay neu Firebase tat hoac loi.
+- Log co `contexts` de biet chunk nao da duoc lay.
 
 ---
 
-## T3 - Feedback va review noi bo
+## T3 - Feedback va review loi chunking/RAG
 
 Uu tien: P1
 
 Phu thuoc: T2
 
-Muc tieu: co nut danh gia cau tra loi va man hinh review/sua du lieu truoc khi train.
+Muc tieu: co nut danh gia cau tra loi va man hinh review de gan nhan loi cho chunking/retrieval.
 
 File lien quan:
 - `src/training_data/firebase_store.py`
@@ -131,94 +127,98 @@ Yeu cau trong `streamlit_app.py`:
   - Huu ich -> rating up
   - Khong huu ich -> rating down
   - Sai thong tin -> rating wrong
-- Tranh gui feedback nhieu lan cho cung turn trong cung session.
 - Them sidebar selectbox: Chatbot / Review data.
-- Review data hien thi logs tu Firebase:
+- Review data hien thi:
   - user_query
   - assistant_answer
   - response_type
   - feedback
-  - contexts filename/score
-- Cho admin nhap corrected_answer, error_type.
+  - contexts filename/score/text
+- Cho admin nhap corrected_answer neu cau tra loi sai.
+- Cho admin nhap error_type, uu tien cac nhan:
+  - wrong_context
+  - no_context
+  - missing_context
+  - incomplete
+  - outdated_info
+  - wrong_format
+  - hallucination
 - Cho chon review_status: raw/approved/rejected/edited.
-- Luu review_status len Firebase.
 ```
 
 Done when:
-- Feedback cap nhat duoc tren Firestore.
+- Admin co the biet cau tra loi sai do chunk/retrieval hay do generation.
 - Admin co the approved/rejected/edited mot log.
 
 ---
 
-## T4 - Redact PII va export dataset train
+## T4 - Export chunk-review dataset va preference dataset
 
 Uu tien: P2
 
 Phu thuoc: T3
 
-Muc tieu: tao duoc dataset fine-tuning va preference learning tu du lieu da review.
+Muc tieu: tao duoc artifact de review chunking/re-index va artifact preference cho RL/DPO sau nay.
 
 File lien quan:
 - `src/training_data/anonymizer.py`
-- `scripts/export_sft_dataset.py`
+- `scripts/export_chunk_review_dataset.py`
 - `scripts/export_preference_dataset.py`
 - `data/training/exports/`
 
 Prompt cho agent:
 
 ```text
-Them anonymizer va script export dataset train.
+Them anonymizer va script export du lieu review chunking.
 
 Yeu cau anonymizer:
 - Tao `src/training_data/anonymizer.py`
 - Ham `redact_pii(text: str) -> str`
-- Redact:
-  - so dien thoai Viet Nam -> [PHONE]
-  - CCCD/CMND 9-12 so -> [ID_NUMBER]
-  - email -> [EMAIL]
-  - ma ho so dang chu+so dai -> [CASE_ID]
+- Redact phone, CCCD/CMND, email, ma ho so.
 - Ham `redact_record(record: dict) -> dict`
 
-Yeu cau export SFT:
-- Tao `scripts/export_sft_dataset.py`
+Yeu cau export chunk review:
+- Tao `scripts/export_chunk_review_dataset.py`
 - Doc logs tu Firebase
-- Chi lay review_status approved hoac edited
-- Neu edited va co corrected_answer thi dung corrected_answer
-- Redact PII truoc khi export
-- Output `data/training/exports/sft_dataset.jsonl`
-- Format:
-  {"messages":[{"role":"system","content":"..."},{"role":"user","content":"..."},{"role":"assistant","content":"..."}]}
+- Chi lay review_status approved/edited/rejected
+- Redact PII
+- Output `data/training/exports/chunk_review_dataset.jsonl`
+- Moi row gom:
+  - user_query
+  - assistant_answer
+  - corrected_answer
+  - response_type
+  - review_status
+  - error_type
+  - feedback
+  - retrieved_contexts: text, metadata, score
+  - chunking_action_hint
 
 Yeu cau export preference:
 - Tao `scripts/export_preference_dataset.py`
-- Doc logs tu Firebase
 - Chi tao sample khi co corrected_answer
 - chosen = corrected_answer
 - rejected = assistant_answer ban dau
 - Redact PII
 - Output `data/training/exports/preference_dataset.jsonl`
-- Format:
-  {"prompt":"...","chosen":"...","rejected":"...","reason":"..."}
 ```
 
 Done when:
-- Export duoc `sft_dataset.jsonl`.
-- Export duoc `preference_dataset.jsonl`.
-- Du lieu export khong con PII raw co ban.
+- Export duoc `chunk_review_dataset.jsonl` de phan tich chunk/re-index.
+- Export duoc `preference_dataset.jsonl` khi co corrected_answer.
 
 ---
 
-## T5 - Demo docs va validate dataset
+## T5 - Demo docs va validate exports
 
 Uu tien: P2
 
 Phu thuoc: T2 cho demo docs, T4 cho validate
 
-Muc tieu: co tai lieu demo cho sep va script kiem tra dataset.
+Muc tieu: co tai lieu demo Firebase va script kiem tra export.
 
 File lien quan:
 - `docs/firebase_demo.md`
-- `data/eval/eval_questions.jsonl`
 - `scripts/validate_training_exports.py`
 
 Prompt cho agent:
@@ -228,34 +228,20 @@ Them tai lieu demo Firebase va cong cu validate dataset.
 
 Yeu cau docs:
 - Tao `docs/firebase_demo.md`
-- Huong dan:
-  - tao Firebase project
-  - bat Firestore
-  - tao service account
-  - dat `firebase-service-account.json` local
-  - cau hinh env
-  - chay Streamlit
-  - hoi bot va kiem tra Firestore collection `chat_logs`
-  - khong commit private key
-
-Yeu cau eval:
-- Tao `data/eval/eval_questions.jsonl`
-- 10 cau mau gom PCCC, dang ky xe, cu tru, thu tuc hanh chinh, no_data, emergency
-- Moi dong co question, expected_points, source_hint, category
+- Huong dan tao Firebase project, bat Firestore, tao service account, dat key local, cau hinh env, chay Streamlit, xem `chat_logs`.
+- Nhac ro Q&A logs dung de review chunking/re-index, khong fine-tune Gemini API.
 
 Yeu cau validate:
 - Tao `scripts/validate_training_exports.py`
-- Kiem tra SFT/preference JSONL hop le
-- Kiem tra SFT co role user/assistant
-- Kiem tra preference co prompt/chosen/rejected
-- Regex canh bao neu con phone/email/CCCD raw
-- In summary so mau hop le/loi/canh bao
+- Kiem tra `chunk_review_dataset.jsonl` hop le.
+- Kiem tra `preference_dataset.jsonl` hop le neu ton tai.
+- Regex canh bao neu con phone/email/CCCD raw.
+- In summary so mau hop le/loi/canh bao.
 ```
 
 Done when:
 - Co doc demo cho sep.
-- Co eval questions.
-- Co script validate export.
+- Co script validate export chunk-review/preference.
 
 ---
 
@@ -272,9 +258,9 @@ T5 docs phan Firebase demo
 Ket qua:
 - Streamlit chay.
 - Hoi bot xong du lieu xuat hien tren Firebase Console.
-- Sep khong can cai database hay tool phu.
+- Sep thay duoc Q&A + retrieved chunks duoc luu de phan tich chunking.
 
-## Milestone retrain/RL day du
+## Milestone chunking/RL day du
 
 Can:
 
@@ -288,7 +274,7 @@ T5
 
 Ket qua:
 - Co Q&A logs.
-- Co feedback.
-- Co review/corrected answer.
-- Co SFT dataset cho fine-tuning.
-- Co preference dataset cho DPO/RLHF/RLAIF sau nay.
+- Co retrieved chunks trong tung cau hoi.
+- Co error_type de biet can chunk lai, them tai lieu, sua metadata hay re-index.
+- Co `chunk_review_dataset.jsonl` cho vong cai thien RAG.
+- Co `preference_dataset.jsonl` cho DPO/RLHF/RLAIF neu co corrected_answer.

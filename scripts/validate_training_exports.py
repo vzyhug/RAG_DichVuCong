@@ -1,4 +1,4 @@
-"""Validate SFT and preference JSONL exports before they are used for training."""
+"""Validate chunk-review and preference JSONL exports."""
 
 from __future__ import annotations
 
@@ -11,9 +11,11 @@ from typing import Any, Iterable
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SFT_PATH = ROOT_DIR / "data" / "training" / "exports" / "sft_dataset.jsonl"
+DEFAULT_CHUNK_REVIEW_PATH = (
+    ROOT_DIR / "data" / "training" / "exports" / "chunk_review_dataset.jsonl"
+)
 DEFAULT_PREFERENCE_PATH = (
-    ROOT_DIR / "data" / "training" / "exports" / "sft_dataset.jsonl"
+    ROOT_DIR / "data" / "training" / "exports" / "preference_dataset.jsonl"
 )
 
 _EMAIL_RE = re.compile(
@@ -71,33 +73,19 @@ def _check_pii(text: str, label: str, line_number: int, summary: ValidationSumma
             summary.add_warning(f"{label}:{line_number} contains a raw {description}")
 
 
-def validate_sft_sample(sample: Any) -> list[str]:
-    """Return structural errors for one SFT sample."""
+def validate_chunk_review_sample(sample: Any) -> list[str]:
+    """Return structural errors for one chunk-review sample."""
     errors: list[str] = []
     if not isinstance(sample, dict):
         return ["sample must be a JSON object"]
 
-    messages = sample.get("messages")
-    if not isinstance(messages, list) or not messages:
-        return ["messages must be a non-empty list"]
-
-    roles: set[str] = set()
-    for index, message in enumerate(messages):
-        if not isinstance(message, dict):
-            errors.append(f"messages[{index}] must be an object")
-            continue
-        role = message.get("role")
-        content = message.get("content")
-        if not isinstance(role, str) or not role.strip():
-            errors.append(f"messages[{index}].role must be a non-empty string")
-        else:
-            roles.add(role.strip())
-        if not isinstance(content, str) or not content.strip():
-            errors.append(f"messages[{index}].content must be a non-empty string")
-
-    for required_role in ("user", "assistant"):
-        if required_role not in roles:
-            errors.append(f"messages must contain a {required_role} role")
+    for field_name in ("user_query", "review_status", "chunking_action_hint"):
+        value = sample.get(field_name)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{field_name} must be a non-empty string")
+    contexts = sample.get("retrieved_contexts")
+    if contexts is not None and not isinstance(contexts, list):
+        errors.append("retrieved_contexts must be a list")
     return errors
 
 
@@ -114,16 +102,26 @@ def validate_preference_sample(sample: Any) -> list[str]:
     return errors
 
 
-def validate_jsonl(path: Path, dataset_type: str) -> ValidationSummary:
+def validate_jsonl(
+    path: Path,
+    dataset_type: str,
+    missing_is_error: bool = True,
+) -> ValidationSummary:
     """Validate JSONL syntax, structure, and common raw PII patterns."""
     summary = ValidationSummary()
     label = str(path)
     if not path.is_file():
-        summary.add_error(f"{label}: file does not exist")
+        message = f"{label}: file does not exist"
+        if missing_is_error:
+            summary.add_error(message)
+        else:
+            summary.add_warning(message)
         return summary
 
     validator = (
-        validate_sft_sample if dataset_type == "sft" else validate_preference_sample
+        validate_chunk_review_sample
+        if dataset_type == "chunk_review"
+        else validate_preference_sample
     )
     try:
         input_file = path.open("r", encoding="utf-8")
@@ -154,23 +152,26 @@ def validate_jsonl(path: Path, dataset_type: str) -> ValidationSummary:
     return summary
 
 
-def validate_sft_file(path: Path) -> ValidationSummary:
-    """Validate an SFT export."""
-    return validate_jsonl(Path(path), "sft")
+def validate_chunk_review_file(path: Path) -> ValidationSummary:
+    """Validate a chunk-review export."""
+    return validate_jsonl(Path(path), "chunk_review")
 
 
-def validate_preference_file(path: Path) -> ValidationSummary:
+def validate_preference_file(
+    path: Path,
+    missing_is_error: bool = False,
+) -> ValidationSummary:
     """Validate a preference export."""
-    return validate_jsonl(Path(path), "preference")
+    return validate_jsonl(Path(path), "preference", missing_is_error=missing_is_error)
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--sft",
+        "--chunk-review",
         type=Path,
-        default=DEFAULT_SFT_PATH,
-        help=f"SFT JSONL path (default: {DEFAULT_SFT_PATH})",
+        default=DEFAULT_CHUNK_REVIEW_PATH,
+        help=f"Chunk-review JSONL path (default: {DEFAULT_CHUNK_REVIEW_PATH})",
     )
     parser.add_argument(
         "--preference",
@@ -178,14 +179,24 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_PREFERENCE_PATH,
         help=f"Preference JSONL path (default: {DEFAULT_PREFERENCE_PATH})",
     )
+    parser.add_argument(
+        "--require-preference",
+        action="store_true",
+        help="Fail if the preference dataset is missing.",
+    )
     return parser
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     args = _build_parser().parse_args(list(argv) if argv is not None else None)
     summary = ValidationSummary()
-    summary.merge(validate_sft_file(args.sft))
-    summary.merge(validate_preference_file(args.preference))
+    summary.merge(validate_chunk_review_file(args.chunk_review))
+    summary.merge(
+        validate_preference_file(
+            args.preference,
+            missing_is_error=args.require_preference,
+        )
+    )
 
     for message in summary.messages:
         print(message)
