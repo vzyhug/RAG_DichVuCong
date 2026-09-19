@@ -508,6 +508,18 @@ def render_review_data():
         ]
 
     if not logs:
+        unfiltered_logs = list_chat_logs(limit=int(limit))
+        if unfiltered_logs:
+            st.warning(
+                "Khong co ban ghi phu hop voi bo loc hien tai. Hay chon Trang thai = Tat ca, Danh gia = Tat ca hoac xoa tu khoa tim kiem."
+            )
+            return
+        unfiltered_logs = list_chat_logs(limit=int(limit))
+        if unfiltered_logs:
+            st.warning(
+                "Khong co ban ghi phu hop voi bo loc hien tai. Hay chon Trang thai = Tat ca, Danh gia = Tat ca hoac xoa tu khoa tim kiem."
+            )
+            return
         st.info("Không tìm thấy dữ liệu chat.")
         return
 
@@ -795,6 +807,12 @@ def render_review_data():
         ]
 
     if not logs:
+        unfiltered_logs = list_chat_logs(limit=int(limit))
+        if unfiltered_logs:
+            st.warning(
+                "Khong co ban ghi phu hop voi bo loc hien tai. Hay chon Trang thai = Tat ca, Danh gia = Tat ca hoac xoa tu khoa tim kiem."
+            )
+            return
         st.info("Không tìm thấy dữ liệu chat.")
         return
 

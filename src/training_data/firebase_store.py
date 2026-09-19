@@ -194,7 +194,8 @@ def list_chat_logs(
             return []
 
         query = collection
-        if review_status is not None:
+        filter_raw_locally = review_status == "raw"
+        if review_status is not None and not filter_raw_locally:
             query = query.where("review_status", "==", review_status)
         if rating is not None:
             query = query.where("feedback.rating", "==", rating)
@@ -208,6 +209,9 @@ def list_chat_logs(
             else:
                 continue
             record["document_id"] = str(getattr(document, "id", ""))
+            record.setdefault("review_status", "raw")
+            if filter_raw_locally and record.get("review_status") != "raw":
+                continue
             logs.append(record)
         return logs
     except Exception:
