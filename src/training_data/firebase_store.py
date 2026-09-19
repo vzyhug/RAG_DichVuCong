@@ -18,8 +18,30 @@ _firestore_client: Any | None = None
 _REVIEW_STATUSES = {"raw", "approved", "rejected", "edited"}
 
 
+def _get_secret_value(key: str, default: str = "") -> str:
+    """Read a config value from env or Streamlit secrets."""
+    value = os.getenv(key)
+    if value:
+        return str(value)
+
+    try:
+        import streamlit as st
+
+        if key in st.secrets:
+            return str(st.secrets[key])
+        for section_name in ("configs", "firebase", "github", "gemini"):
+            if section_name not in st.secrets:
+                continue
+            section = st.secrets.get(section_name)
+            if hasattr(section, "get") and section.get(key):
+                return str(section.get(key))
+    except Exception:
+        pass
+    return default
+
+
 def _is_enabled() -> bool:
-    return os.getenv("ENABLE_FIREBASE_LOGGING", "false").strip().lower() in {
+    return _get_secret_value("ENABLE_FIREBASE_LOGGING", "false").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -28,7 +50,7 @@ def _is_enabled() -> bool:
 
 
 def _has_inline_credentials() -> bool:
-    return bool(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip())
+    return bool(_get_secret_value("FIREBASE_SERVICE_ACCOUNT_JSON").strip())
 
 
 def _get_firestore_client(credentials_path: str | None = None) -> Any | None:
@@ -46,8 +68,8 @@ def _get_firestore_client(credentials_path: str | None = None) -> Any | None:
             try:
                 app = firebase_admin.get_app()
             except ValueError:
-                service_account_json = os.getenv(
-                    "FIREBASE_SERVICE_ACCOUNT_JSON", ""
+                service_account_json = _get_secret_value(
+                    "FIREBASE_SERVICE_ACCOUNT_JSON"
                 ).strip()
                 if service_account_json:
                     service_account_info = json.loads(service_account_json)
@@ -71,7 +93,7 @@ def _get_chat_collection() -> Any | None:
         logger.warning("Firebase chat logging is disabled")
         return None
 
-    credentials_path = os.getenv(
+    credentials_path = _get_secret_value(
         "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
     ).strip()
     if not _has_inline_credentials() and not credentials_path:
@@ -82,7 +104,7 @@ def _get_chat_collection() -> Any | None:
         logger.warning("Firebase credentials file is missing: %s", credentials_path)
         return None
 
-    collection_name = os.getenv("FIREBASE_COLLECTION", "chat_logs").strip()
+    collection_name = _get_secret_value("FIREBASE_COLLECTION", "chat_logs").strip()
     if not collection_name:
         logger.warning("Firebase collection is not configured")
         return None
@@ -99,7 +121,7 @@ def _get_data_update_collection() -> Any | None:
         logger.warning("Firebase data update request logging is disabled")
         return None
 
-    credentials_path = os.getenv(
+    credentials_path = _get_secret_value(
         "FIREBASE_CREDENTIALS_PATH", "firebase-service-account.json"
     ).strip()
     if not _has_inline_credentials() and not credentials_path:
@@ -110,7 +132,7 @@ def _get_data_update_collection() -> Any | None:
         logger.warning("Firebase credentials file is missing: %s", credentials_path)
         return None
 
-    collection_name = os.getenv(
+    collection_name = _get_secret_value(
         "FIREBASE_DATA_UPDATE_COLLECTION", "data_update_requests"
     ).strip()
     if not collection_name:

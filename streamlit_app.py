@@ -10,6 +10,31 @@ from uuid import uuid4
 # Thêm đường dẫn gốc để import
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+
+def _load_streamlit_secrets_into_env():
+    """Expose Streamlit Cloud secrets through os.environ for existing modules."""
+    try:
+        secret_keys = list(st.secrets.keys())
+    except Exception:
+        return
+
+    def apply_mapping(mapping):
+        for key, value in mapping.items():
+            if hasattr(value, "items") or value is None:
+                continue
+            os.environ.setdefault(str(key), str(value))
+
+    apply_mapping(st.secrets)
+    for section_name in ("configs", "firebase", "github", "gemini"):
+        if section_name not in secret_keys:
+            continue
+        section = st.secrets.get(section_name)
+        if hasattr(section, "items"):
+            apply_mapping(section)
+
+
+_load_streamlit_secrets_into_env()
+
 from src.rag_flow.context_retriever import ContextRetriever
 from src.rag_flow.reasoning_chain import ReasoningChain
 from src.llm.model_factory import LLMFactory
